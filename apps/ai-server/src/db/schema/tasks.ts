@@ -1,20 +1,26 @@
 import {
+    pgEnum,
     pgTable,
     uuid,
     text,
-    varchar,
     jsonb,
     timestamp,
 } from "drizzle-orm/pg-core"
+
+export const taskStatusEnum = pgEnum("task_status", [
+    "planning",
+    "ready",
+    "running",
+    "completed",
+    "failed",
+])
 
 export const tasks = pgTable("tasks", {
     id: uuid("id").primaryKey(),
 
     input: text("input").notNull(),
 
-    status: varchar("status", {
-        length: 32,
-    }).notNull(),
+    status: taskStatusEnum("status").notNull(),
 
     plan: jsonb("plan"),
 

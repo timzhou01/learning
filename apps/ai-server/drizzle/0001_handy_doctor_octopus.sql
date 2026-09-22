@@ -1,0 +1,2 @@
+CREATE TYPE "public"."task_status" AS ENUM('planning', 'ready', 'running', 'completed', 'failed');--> statement-breakpoint
+ALTER TABLE "tasks" ALTER COLUMN "status" SET DATA TYPE "public"."task_status" USING "status"::"public"."task_status";

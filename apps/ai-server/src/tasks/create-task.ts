@@ -1,7 +1,7 @@
-import type { TaskState } from "./task.types.js"
 import { generateTaskPlan } from "../ai/generate-task-plan.js"
 
 import { z } from "zod"
+import type { TaskState } from "../modules/task/domain/task.types.js"
 
 export const CreateTaskSchema = z.object({
     input: z.string().min(1),

@@ -1,4 +1,4 @@
-import { TaskPlanSchema, type TaskPlan } from "../tasks/task-plan.schema.js"
+import { TaskPlanSchema, type TaskPlan } from "../modules/task/domain/task-plan.schema.js"
 import { openai } from "./openai.js"
 import { zodTextFormat } from "openai/helpers/zod"
 

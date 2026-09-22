@@ -1,35 +1,33 @@
 import "dotenv/config"
 import express from "express"
-import { createTask, CreateTaskSchema } from "./tasks/create-task.js"
+
+import { taskRouter } from "./modules/task/task.routes.js"
 
 const app = express()
 
 app.use(express.json())
 
-app.post("/tasks", async (req, res) => {
-    console.log('test')
-    const result = CreateTaskSchema.safeParse(req.body)
+app.use("/tasks", taskRouter)
 
-    if (!result.success) {
-        return res.status(400).json({
-            error: "Invalid request",
-            details: result.error.flatten(),
-        })
-    }
-    console.log('input')
+const port = Number(process.env.PORT ?? 3000)
 
-    const task = await createTask(result.data.input)
-
-    res.json(task)
-})
-
-app.get('/health', async (req, res) => {
+app.get("/health", (_req, res) => {
     res.json({
-        message: "Hello Express",
-    });
+        status: "ok",
+    })
 })
 
 
-app.listen(3000, () => {
-    console.log(`AI server running at http://localhost:3000`)
+
+const server = app.listen(port, () => {
+    console.log(`AI server running at http://localhost:${port}`)
+})
+
+process.on("SIGINT", () => {
+    console.log("\nShutting down...")
+
+    server.close(() => {
+        console.log("Server closed")
+        process.exit(0)
+    })
 })

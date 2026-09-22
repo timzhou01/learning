@@ -4,4 +4,5 @@ const apiKey = process.env.OPENAI_API_KEY || 'sk-proj-8X6m0YNdVeQNC4n2uwlZFWJtGK
 
 export const openai = new OpenAI({
     apiKey: apiKey,
+    timeout: 600_000,
 })
