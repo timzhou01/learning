@@ -1,16 +1,18 @@
 services:
   postgres:
-    image: postgres:16
-    container_name: commerce-postgres
-    restart: unless-stopped
+    image: postgres:17
+    container_name: learning-postgres
+
     environment:
-      POSTGRES_USER: commerce
-      POSTGRES_PASSWORD: commerce
-      POSTGRES_DB: commerce
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ai_workbench
+
     ports:
-      - "5432:5432"
+      - "5433:5432"
+
     volumes:
-      - commerce_postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
 
 volumes:
-  commerce_postgres_data:
+  postgres_data:

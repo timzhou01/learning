@@ -1,11 +1,12 @@
 {
-  "name": "commerce-api",
+  "name": "ai-server",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc"
+    "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
+    "db:migrate": "drizzle-kit migrate --config=drizzle.config.ts"
   },
   "keywords": [],
   "author": "",
@@ -19,12 +20,19 @@
   },
   "type": "module",
   "dependencies": {
-    "express": "^5.2.1"
+    "dotenv": "^18.0.1",
+    "drizzle-orm": "^0.45.2",
+    "express": "^5.2.1",
+    "openai": "^7.20.0",
+    "pg": "^8.23.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^26.6.2",
-    "tsx": "^4.23.13",
+    "@types/pg": "^8.23.1",
+    "drizzle-kit": "^0.31.10",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   }
 }
