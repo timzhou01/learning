@@ -27,6 +27,8 @@ export const tasks = pgTable("tasks", {
 
     error: text("error"),
 
+    result: text("result"),
+
     createdAt: timestamp("created_at", {
         withTimezone: true,
     })

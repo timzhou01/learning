@@ -5,10 +5,14 @@ import type { TaskRepository } from "../repository/task.repository.js"
 import { generateTaskPlan } from "../../../ai/generate-task-plan.js"
 import type { TaskPlan } from "../domain/task-plan.schema.js"
 import { AppError } from "../../../common/app.error.js"
+import { LocalWorkspace } from "../../../workspace/local-workspace.js"
+import { runAgent } from "../../../ai/run-with-tools.js"
+import type { AgentRunRepository } from "../repository/agent-run.repository.js"
 
 export class TaskService {
     constructor(
         private readonly taskRepository: TaskRepository,
+        private readonly agentRunRepository: AgentRunRepository,
     ) { }
 
     async runTask(id: string) {
@@ -25,9 +29,60 @@ export class TaskService {
             )
         }
 
-        return this.taskRepository.update(id, {
+        await this.taskRepository.update(id, {
             status: "running",
+            error: null,
         })
+
+        const run = await this.agentRunRepository.createRun(id)
+
+        const workspace = new LocalWorkspace(process.cwd())
+
+        try {
+            const agentResult = await runAgent(
+                task.input,
+                workspace,
+            )
+            console.log('agentResult', agentResult)
+
+            for (const step of agentResult.steps) {
+                await this.agentRunRepository.createStep({
+                    runId: run.id,
+                    stepNumber: step.stepNumber,
+                    toolName: step.toolName,
+                    arguments: step.arguments,
+                    output: step.output ?? null,
+                    error: step.error ?? null,
+                })
+            }
+
+            await this.agentRunRepository.updateRun(run.id, {
+                status: "completed",
+                result: agentResult.result,
+                error: null,
+            })
+
+            return await this.taskRepository.update(id, {
+                status: "completed",
+                result: agentResult.result,
+                error: null,
+            })
+        } catch (error) {
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : "Unknown error"
+
+            await this.agentRunRepository.updateRun(run.id, {
+                status: "failed",
+                error: message,
+            })
+
+            return await this.taskRepository.update(id, {
+                status: "failed",
+                error: message,
+            })
+        }
     }
 
     async createTask(input: string) {

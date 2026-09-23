@@ -15,6 +15,34 @@
       "when": 1790058171980,
       "tag": "0001_handy_doctor_octopus",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790128619521,
+      "tag": "0002_slim_makkari",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790128808489,
+      "tag": "0003_boring_purifiers",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790130728534,
+      "tag": "0004_lively_anthem",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790131306717,
+      "tag": "0005_faithful_morlun",
+      "breakpoints": true
     }
   ]
 }
