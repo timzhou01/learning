@@ -3,10 +3,67 @@ import path from "node:path"
 
 import type { Workspace } from "./workspace.types.js"
 
+import { execFile } from "node:child_process"
+import { promisify } from "node:util"
+
+const execFileAsync = promisify(execFile)
+
 export class LocalWorkspace implements Workspace {
     constructor(
         private readonly root: string,
     ) { }
+
+    async getGitDiff(): Promise<string> {
+        const { stdout } = await execFileAsync(
+            "git",
+            ["diff"],
+            {
+                cwd: this.root,
+                maxBuffer: 10 * 1024 * 1024,
+            },
+        )
+
+        return stdout
+    }
+
+    async writeFile(
+        filePath: string,
+        content: string,
+    ): Promise<void> {
+        const root = await fs.realpath(this.root)
+
+        const resolved = path.resolve(
+            root,
+            filePath,
+        )
+
+        if (
+            resolved !== root &&
+            !resolved.startsWith(root + path.sep)
+        ) {
+            throw new Error(
+                "Access outside workspace is not allowed",
+            )
+        }
+
+        const parentDir = path.dirname(resolved)
+        const realParent = await fs.realpath(parentDir)
+
+        if (
+            realParent !== root &&
+            !realParent.startsWith(root + path.sep)
+        ) {
+            throw new Error(
+                "Access outside workspace is not allowed",
+            )
+        }
+
+        await fs.writeFile(
+            resolved,
+            content,
+            "utf8",
+        )
+    }
 
     async readFile(filePath: string): Promise<string> {
         const fullPath = await this.resolveSafePath(filePath)
