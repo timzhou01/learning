@@ -4,7 +4,9 @@ export type TaskStatus =
     | "planning"
     | "ready"
     | "running"
-    | "completed"
+    | "waiting_approval"
+    | "approved"
+    | "rejected"
     | "failed"
 
 export type TaskState = {
@@ -17,9 +19,20 @@ export type TaskState = {
 
 export const allowedTransitions: Record<TaskStatus, TaskStatus[]> = {
     planning: ["ready", "failed"],
+
     ready: ["running", "failed"],
-    running: ["completed", "failed"],
-    completed: [],
+
+    running: ["waiting_approval", "failed"],
+
+    waiting_approval: [
+        "approved",
+        "rejected",
+    ],
+
+    approved: [],
+
+    rejected: [],
+
     failed: [],
 }
 

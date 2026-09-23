@@ -50,6 +50,13 @@
       "when": 1790133718022,
       "tag": "0006_known_quentin_quire",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790147367921,
+      "tag": "0007_shiny_black_knight",
+      "breakpoints": true
     }
   ]
 }

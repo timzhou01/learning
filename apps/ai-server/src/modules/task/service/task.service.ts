@@ -8,6 +8,7 @@ import { AgentRunError, AppError } from "../../../common/app.error.js"
 import { LocalWorkspace } from "../../../workspace/local-workspace.js"
 import { runAgent } from "../../../ai/run-with-tools.js"
 import type { AgentRunRepository } from "../repository/agent-run.repository.js"
+import { WorkspaceManager } from "../../../workspace/workspace-manager.js"
 
 export class TaskService {
     constructor(
@@ -37,15 +38,45 @@ export class TaskService {
         const run =
             await this.agentRunRepository.createRun(id)
 
-        const workspace = new LocalWorkspace(
-            process.cwd(),
-        )
+        // const workspace = new LocalWorkspace(
+        //     process.cwd(),
+        // )
+        const sourceRepo =
+            process.env.AGENT_SOURCE_REPO
+
+        const workspaceBase =
+            process.env.AGENT_WORKSPACE_BASE
+
+        if (!sourceRepo || !workspaceBase) {
+            throw new AppError(
+                "Agent workspace configuration is missing",
+                500,
+            )
+        }
+
+        const workspaceManager =
+            new WorkspaceManager(
+                sourceRepo,
+                workspaceBase,
+            )
+
+        const workspacePath =
+            await workspaceManager.createWorkspace(id)
+
+        const workspace =
+            new LocalWorkspace(workspacePath)
 
         try {
             const agentResult = await runAgent(
                 task.input,
                 workspace,
             )
+
+            const commitHash =
+                await workspaceManager.commitChanges(
+                    workspacePath,
+                    `agent task ${id}`,
+                )
 
             // 保存所有 Tool Trace
             for (const step of agentResult.steps) {
@@ -88,7 +119,7 @@ export class TaskService {
             return await this.taskRepository.update(
                 id,
                 {
-                    status: "completed",
+                    status: "waiting_approval",
                     result: agentResult.result,
                     error: null,
                 },
@@ -115,6 +146,98 @@ export class TaskService {
                 },
             )
         }
+    }
+
+    async approveTask(
+        id: string,
+    ) {
+        const task =
+            await this.taskRepository.findById(id)
+
+        if (!task) {
+            throw new AppError(
+                `Task not found: ${id}`,
+                404,
+            )
+        }
+
+        if (!canTransition(task.status, "approved")) {
+            throw new AppError(
+                `Invalid task status transition: ${task.status} -> approved`,
+                409,
+            )
+        }
+
+        const sourceRepo =
+            process.env.AGENT_SOURCE_REPO
+
+        const workspaceBase =
+            process.env.AGENT_WORKSPACE_BASE
+
+        if (!sourceRepo || !workspaceBase) {
+            throw new AppError(
+                "Agent workspace configuration is missing",
+                500,
+            )
+        }
+
+        const workspaceManager =
+            new WorkspaceManager(
+                sourceRepo,
+                workspaceBase,
+            )
+
+        await workspaceManager.approveTask(id)
+
+
+
+        return this.taskRepository.update(id, {
+            status: "approved",
+        })
+    }
+
+    async rejectTask(id: string) {
+        const task =
+            await this.taskRepository.findById(id)
+
+        if (!task) {
+            throw new AppError(
+                `Task not found: ${id}`,
+                404,
+            )
+        }
+
+        if (!canTransition(task.status, "rejected")) {
+            throw new AppError(
+                `Invalid task status transition: ${task.status} -> rejected`,
+                409,
+            )
+        }
+
+        const sourceRepo =
+            process.env.AGENT_SOURCE_REPO
+
+        const workspaceBase =
+            process.env.AGENT_WORKSPACE_BASE
+
+        if (!sourceRepo || !workspaceBase) {
+            throw new AppError(
+                "Agent workspace configuration is missing",
+                500,
+            )
+        }
+
+        const workspaceManager =
+            new WorkspaceManager(
+                sourceRepo,
+                workspaceBase,
+            )
+
+        await workspaceManager.rejectTask(id)
+
+        return this.taskRepository.update(id, {
+            status: "rejected",
+        })
     }
 
     async createTask(input: string) {

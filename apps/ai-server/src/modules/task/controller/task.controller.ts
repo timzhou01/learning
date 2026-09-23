@@ -1,4 +1,4 @@
-import type { Request, Response } from "express"
+import type { NextFunction, Request, Response } from "express"
 import { TaskService } from "../service/task.service.js"
 import { CreateTaskSchema } from "../domain/create-task.schema.js"
 import { AppError } from "../../../common/app.error.js"
@@ -44,5 +44,39 @@ export class TaskController {
         )
 
         return res.json(task)
+    }
+
+    approveTask = async (
+        req: Request,
+        res: Response,
+        next: NextFunction,
+    ) => {
+        try {
+            const result =
+                await this.taskService.approveTask(
+                    req.params.id as string,
+                )
+
+            res.json(result)
+        } catch (error) {
+            next(error)
+        }
+    }
+
+    rejectTask = async (
+        req: Request,
+        res: Response,
+        next: NextFunction,
+    ) => {
+        try {
+            const result =
+                await this.taskService.rejectTask(
+                    req.params.id as string,
+                )
+
+            res.json(result)
+        } catch (error) {
+            next(error)
+        }
     }
 }

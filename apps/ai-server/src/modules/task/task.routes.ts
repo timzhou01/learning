@@ -27,3 +27,13 @@ taskRouter.get(
     "/runs/:runId/steps",
     agentRunController.getStepsByRunId,
 )
+
+taskRouter.post(
+    "/:id/approve",
+    taskController.approveTask,
+)
+
+taskRouter.post(
+    "/:id/reject",
+    taskController.rejectTask,
+)
