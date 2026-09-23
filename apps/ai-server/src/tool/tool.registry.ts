@@ -3,6 +3,7 @@ import { createReadFileTool } from "./read-file.tool.js"
 import { createListFilesTool } from "./list-files.tool.js"
 import { createSearchCodeTool } from "./search-code.tool.js"
 import { createGitDiffTool } from "./git-diff.tool.js"
+import { createWriteFileTool } from "./write-file.tool.js"
 
 export function createTools(
     workspace: Workspace,
@@ -11,7 +12,7 @@ export function createTools(
         createReadFileTool(workspace),
         createListFilesTool(workspace),
         createSearchCodeTool(workspace),
-        createReadFileTool(workspace),
+        createWriteFileTool(workspace),
         createGitDiffTool(workspace),
     ]
 }
