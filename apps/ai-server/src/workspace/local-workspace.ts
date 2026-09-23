@@ -1,7 +1,7 @@
 import fs from "node:fs/promises"
 import path from "node:path"
 
-import type { Workspace } from "./workspace.types.js"
+import type { CommandResult, Workspace } from "./workspace.types.js"
 
 import { execFile } from "node:child_process"
 import { promisify } from "node:util"
@@ -154,5 +154,92 @@ export class LocalWorkspace implements Workspace {
         }
 
         return realPath
+    }
+
+    async runCommand(
+        command: string,
+        args: string[],
+    ): Promise<CommandResult> {
+        const allowedCommands = new Set([
+            "pnpm",
+        ])
+
+        if (!allowedCommands.has(command)) {
+            throw new Error(
+                `Command is not allowed: ${command}`,
+            )
+        }
+
+        const allowedPnpmCommands = new Set([
+            "test",
+            "lint",
+            "build",
+        ])
+
+        if (
+            command === "pnpm" &&
+            (
+                args.length !== 1 ||
+                !allowedPnpmCommands.has(args[0]!)
+            )
+        ) {
+            throw new Error(
+                `pnpm command is not allowed: ${args.join(" ")}`,
+            )
+        }
+
+        try {
+            const {
+                stdout,
+                stderr,
+            } = await execFileAsync(
+                command,
+                args,
+                {
+                    cwd: this.root,
+                    timeout: 60_000,
+                    maxBuffer:
+                        10 * 1024 * 1024,
+                },
+            )
+
+            return {
+                exitCode: 0,
+                stdout,
+                stderr,
+            }
+        } catch (error) {
+            if (
+                typeof error === "object" &&
+                error !== null
+            ) {
+                const execError =
+                    error as {
+                        code?: number | string
+                        stdout?: string
+                        stderr?: string
+                        killed?: boolean
+                    }
+
+                return {
+                    exitCode:
+                        typeof execError.code === "number"
+                            ? execError.code
+                            : 1,
+                    stdout:
+                        execError.stdout ?? "",
+                    stderr:
+                        execError.killed
+                            ? "Command timed out"
+                            : execError.stderr ?? "",
+                }
+            }
+
+            return {
+                exitCode: 1,
+                stdout: "",
+                stderr: "Unknown command error",
+            }
+        }
     }
 }

@@ -4,6 +4,7 @@ import { createListFilesTool } from "./list-files.tool.js"
 import { createSearchCodeTool } from "./search-code.tool.js"
 import { createGitDiffTool } from "./git-diff.tool.js"
 import { createWriteFileTool } from "./write-file.tool.js"
+import { createRunCommandTool } from "./run-command.tool.js"
 
 export function createTools(
     workspace: Workspace,
@@ -14,6 +15,7 @@ export function createTools(
         createSearchCodeTool(workspace),
         createWriteFileTool(workspace),
         createGitDiffTool(workspace),
+        createRunCommandTool(workspace),
     ]
 }
 

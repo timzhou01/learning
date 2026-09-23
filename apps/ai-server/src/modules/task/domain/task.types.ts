@@ -5,6 +5,8 @@ export type TaskStatus =
     | "ready"
     | "running"
     | "waiting_approval"
+    | "approving"
+    | "rejecting"
     | "approved"
     | "rejected"
     | "failed"
@@ -25,8 +27,18 @@ export const allowedTransitions: Record<TaskStatus, TaskStatus[]> = {
     running: ["waiting_approval", "failed"],
 
     waiting_approval: [
+        "approving",
+        "rejecting",
+    ],
+
+    approving: [
         "approved",
+        "waiting_approval",
+    ],
+
+    rejecting: [
         "rejected",
+        "waiting_approval",
     ],
 
     approved: [],

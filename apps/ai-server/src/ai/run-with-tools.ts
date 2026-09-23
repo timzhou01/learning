@@ -194,7 +194,7 @@ export async function runAgent(
                 )
 
                 const toolResult =
-                    await tool.execute(args)
+                    await tool.execute(args as any)
 
                 const output =
                     typeof toolResult === "string"

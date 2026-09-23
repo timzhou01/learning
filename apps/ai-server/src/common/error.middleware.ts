@@ -3,6 +3,7 @@ import type {
     Request,
     Response,
 } from "express"
+import { ZodError } from "zod"
 
 import { AppError } from "./app.error.js"
 
@@ -15,6 +16,16 @@ export function errorMiddleware(
     if (error instanceof AppError) {
         return res.status(error.statusCode).json({
             error: error.message,
+        })
+    }
+
+    if (error instanceof ZodError) {
+        return res.status(400).json({
+            error: "Invalid request",
+            issues: error.issues.map((issue) => ({
+                path: issue.path.join("."),
+                message: issue.message,
+            })),
         })
     }
 

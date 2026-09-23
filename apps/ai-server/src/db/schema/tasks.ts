@@ -13,6 +13,8 @@ export const taskStatusEnum = pgEnum("task_status", [
     "ready",
     "running",
     "waiting_approval",
+    "approving",
+    "rejecting",
     "approved",
     "rejected",
     "failed",

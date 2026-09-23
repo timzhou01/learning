@@ -165,12 +165,20 @@ export class TaskService {
             )
         }
 
-        if (!canTransition(
-            task.status,
-            "approved",
-        )) {
+        if (task.status === "approved") {
+            return task
+        }
+
+        const approvingTask =
+            await this.taskRepository.transitionStatus(
+                id,
+                "waiting_approval",
+                "approving",
+            )
+
+        if (!approvingTask) {
             throw new AppError(
-                `Invalid task status transition: ${task.status} -> approved`,
+                "Task approval conflict",
                 409,
             )
         }
@@ -182,6 +190,12 @@ export class TaskService {
             process.env.AGENT_WORKSPACE_BASE
 
         if (!sourceRepo || !workspaceBase) {
+            await this.taskRepository.transitionStatus(
+                id,
+                "approving",
+                "waiting_approval",
+            )
+
             throw new AppError(
                 "Agent workspace configuration is missing",
                 500,
@@ -194,20 +208,47 @@ export class TaskService {
                 workspaceBase,
             )
 
-        await workspaceManager.approveTask(id)
+        let merged = false
 
-        await this.taskReviewRepository.createReview({
-            taskId: id,
-            decision: "approved",
-            reviewer,
-            ...(comment !== undefined
-                ? { comment }
-                : {}),
-        })
+        try {
+            await workspaceManager.approveTask(id)
 
-        return this.taskRepository.update(id, {
-            status: "approved",
-        })
+            merged = true
+
+            await this.taskReviewRepository.createReview({
+                taskId: id,
+                decision: "approved",
+                reviewer,
+                ...(comment !== undefined
+                    ? { comment }
+                    : {}),
+            })
+
+            const approvedTask =
+                await this.taskRepository.transitionStatus(
+                    id,
+                    "approving",
+                    "approved",
+                )
+
+            if (!approvedTask) {
+                throw new Error(
+                    "Failed to finalize approval state",
+                )
+            }
+
+            return approvedTask
+        } catch (error) {
+            if (!merged) {
+                await this.taskRepository.transitionStatus(
+                    id,
+                    "approving",
+                    "waiting_approval",
+                )
+            }
+
+            throw error
+        }
     }
 
     async getTaskReviews(id: string) {
@@ -239,12 +280,20 @@ export class TaskService {
             )
         }
 
-        if (!canTransition(
-            task.status,
-            "rejected",
-        )) {
+        if (task.status === "rejected") {
+            return task
+        }
+
+        const rejectingTask =
+            await this.taskRepository.transitionStatus(
+                id,
+                "waiting_approval",
+                "rejecting",
+            )
+
+        if (!rejectingTask) {
             throw new AppError(
-                `Invalid task status transition: ${task.status} -> rejected`,
+                "Task rejection conflict",
                 409,
             )
         }
@@ -256,6 +305,12 @@ export class TaskService {
             process.env.AGENT_WORKSPACE_BASE
 
         if (!sourceRepo || !workspaceBase) {
+            await this.taskRepository.transitionStatus(
+                id,
+                "rejecting",
+                "waiting_approval",
+            )
+
             throw new AppError(
                 "Agent workspace configuration is missing",
                 500,
@@ -268,20 +323,42 @@ export class TaskService {
                 workspaceBase,
             )
 
-        await workspaceManager.rejectTask(id)
+        try {
+            await workspaceManager.rejectTask(id)
 
-        await this.taskReviewRepository.createReview({
-            taskId: id,
-            decision: "rejected",
-            reviewer,
-            ...(comment !== undefined
-                ? { comment }
-                : {}),
-        })
+            await this.taskReviewRepository.createReview({
+                taskId: id,
+                decision: "rejected",
+                reviewer,
+                ...(comment !== undefined
+                    ? { comment }
+                    : {}),
+            })
 
-        return this.taskRepository.update(id, {
-            status: "rejected",
-        })
+            const rejectedTask =
+                await this.taskRepository.transitionStatus(
+                    id,
+                    "rejecting",
+                    "rejected",
+                )
+
+            if (!rejectedTask) {
+                throw new AppError(
+                    "Failed to finalize task rejection",
+                    409,
+                )
+            }
+
+            return rejectedTask
+        } catch (error) {
+            await this.taskRepository.transitionStatus(
+                id,
+                "rejecting",
+                "waiting_approval",
+            )
+
+            throw error
+        }
     }
 
     async createTask(input: string) {

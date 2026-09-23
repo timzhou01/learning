@@ -1,7 +1,8 @@
-import { eq } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 import { db } from "../../../db/client.js"
 import { tasks, type NewTaskRecord, type TaskRecord } from "../../../db/schema/tasks.js"
 import type { UpdateTaskData } from "./task.repository.types.js"
+import type { TaskStatus } from "../domain/task.types.js"
 
 
 export class TaskRepository {
@@ -44,6 +45,28 @@ export class TaskRepository {
             .from(tasks)
             .where(eq(tasks.id, id))
             .limit(1)
+
+        return task
+    }
+
+    async transitionStatus(
+        id: string,
+        from: TaskStatus,
+        to: TaskStatus,
+    ) {
+        const [task] = await db
+            .update(tasks)
+            .set({
+                status: to,
+                updatedAt: new Date(),
+            })
+            .where(
+                and(
+                    eq(tasks.id, id),
+                    eq(tasks.status, from),
+                ),
+            )
+            .returning()
 
         return task
     }
