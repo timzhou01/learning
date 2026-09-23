@@ -4,7 +4,7 @@ import { canTransition } from "../domain/task.types.js"
 import type { TaskRepository } from "../repository/task.repository.js"
 import { generateTaskPlan } from "../../../ai/generate-task-plan.js"
 import type { TaskPlan } from "../domain/task-plan.schema.js"
-import { AppError } from "../../../common/app.error.js"
+import { AgentRunError, AppError } from "../../../common/app.error.js"
 import { LocalWorkspace } from "../../../workspace/local-workspace.js"
 import { runAgent } from "../../../ai/run-with-tools.js"
 import type { AgentRunRepository } from "../repository/agent-run.repository.js"
@@ -34,17 +34,20 @@ export class TaskService {
             error: null,
         })
 
-        const run = await this.agentRunRepository.createRun(id)
+        const run =
+            await this.agentRunRepository.createRun(id)
 
-        const workspace = new LocalWorkspace(process.cwd())
+        const workspace = new LocalWorkspace(
+            process.cwd(),
+        )
 
         try {
             const agentResult = await runAgent(
                 task.input,
                 workspace,
             )
-            console.log('agentResult', agentResult)
 
+            // 保存所有 Tool Trace
             for (const step of agentResult.steps) {
                 await this.agentRunRepository.createStep({
                     runId: run.id,
@@ -53,35 +56,64 @@ export class TaskService {
                     arguments: step.arguments,
                     output: step.output ?? null,
                     error: step.error ?? null,
+                    durationMs: step.durationMs,
                 })
             }
 
-            await this.agentRunRepository.updateRun(run.id, {
-                status: "completed",
-                result: agentResult.result,
-                error: null,
-            })
+            // 更新 Agent Run
+            await this.agentRunRepository.updateRun(
+                run.id,
+                {
+                    status: "completed",
 
-            return await this.taskRepository.update(id, {
-                status: "completed",
-                result: agentResult.result,
-                error: null,
-            })
+                    result: agentResult.result,
+
+                    error: null,
+
+                    durationMs:
+                        agentResult.durationMs,
+
+                    inputTokens:
+                        agentResult.usage.inputTokens,
+
+                    outputTokens:
+                        agentResult.usage.outputTokens,
+
+                    totalTokens:
+                        agentResult.usage.totalTokens,
+                },
+            )
+
+            // 更新 Task
+            return await this.taskRepository.update(
+                id,
+                {
+                    status: "completed",
+                    result: agentResult.result,
+                    error: null,
+                },
+            )
         } catch (error) {
             const message =
                 error instanceof Error
                     ? error.message
                     : "Unknown error"
 
-            await this.agentRunRepository.updateRun(run.id, {
-                status: "failed",
-                error: message,
-            })
+            await this.agentRunRepository.updateRun(
+                run.id,
+                {
+                    status: "failed",
+                    error: message,
+                },
+            )
 
-            return await this.taskRepository.update(id, {
-                status: "failed",
-                error: message,
-            })
+            return await this.taskRepository.update(
+                id,
+                {
+                    status: "failed",
+                    error: message,
+                },
+            )
         }
     }
 

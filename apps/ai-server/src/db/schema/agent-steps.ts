@@ -26,6 +26,8 @@ export const agentSteps = pgTable("agent_steps", {
 
     error: text("error"),
 
+    durationMs: integer("duration_ms"),
+
     createdAt: timestamp("created_at", {
         withTimezone: true,
     })

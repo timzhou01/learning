@@ -43,6 +43,13 @@
       "when": 1790131306717,
       "tag": "0005_faithful_morlun",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790133718022,
+      "tag": "0006_known_quentin_quire",
+      "breakpoints": true
     }
   ]
 }

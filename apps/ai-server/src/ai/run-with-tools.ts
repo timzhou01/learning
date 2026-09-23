@@ -1,6 +1,8 @@
-import type { Workspace } from "../workspace/workspace.types.js"
-import { createTools } from "../tool/tool.registry.js"
+import type { ResponseCreateParamsNonStreaming } from "openai/resources/responses/responses"
+
 import { openai } from "./openai.js"
+import { createTools } from "../tool/tool.registry.js"
+import type { Workspace } from "../workspace/workspace.types.js"
 
 export type AgentStepResult = {
     stepNumber: number
@@ -8,11 +10,24 @@ export type AgentStepResult = {
     arguments: unknown
     output?: string
     error?: string
+    durationMs: number
+}
+
+export type AgentModelStep = {
+    stepNumber: number
+    durationMs: number
+    inputTokens: number
+    outputTokens: number
+    totalTokens: number
 }
 
 export type AgentRunResult = {
     result: string
+
     steps: AgentStepResult[]
+
+    modelSteps: AgentModelStep[]
+
     usage: {
         inputTokens: number
         outputTokens: number
@@ -20,6 +35,34 @@ export type AgentRunResult = {
     }
 
     durationMs: number
+}
+
+async function callModel(
+    params: ResponseCreateParamsNonStreaming,
+    stepNumber: number,
+) {
+    const startedAt = Date.now()
+
+    const response = await openai.responses.create(params)
+
+    return {
+        response,
+
+        modelStep: {
+            stepNumber,
+
+            durationMs: Date.now() - startedAt,
+
+            inputTokens:
+                response.usage?.input_tokens ?? 0,
+
+            outputTokens:
+                response.usage?.output_tokens ?? 0,
+
+            totalTokens:
+                response.usage?.total_tokens ?? 0,
+        } satisfies AgentModelStep,
+    }
 }
 
 export async function runAgent(
@@ -32,38 +75,56 @@ export async function runAgent(
     const tools = createTools(workspace)
 
     const steps: AgentStepResult[] = []
+    const modelSteps: AgentModelStep[] = []
 
     let inputTokens = 0
     let outputTokens = 0
     let totalTokens = 0
 
-    let response = await openai.responses.create({
-        model: "gpt-5.6",
-        input,
-        tools: tools.map((tool) => tool.definition),
-    })
-
-    const collectUsage = () => {
-        if (!response.usage) {
-            return
-        }
-
-        inputTokens += response.usage.input_tokens
-        outputTokens += response.usage.output_tokens
-        totalTokens += response.usage.total_tokens
+    const addUsage = (
+        modelStep: AgentModelStep,
+    ) => {
+        inputTokens += modelStep.inputTokens
+        outputTokens += modelStep.outputTokens
+        totalTokens += modelStep.totalTokens
     }
 
-    collectUsage()
+    const firstCall = await callModel(
+        {
+            model: "gpt-5.6",
 
-    for (let step = 0; step < maxSteps; step++) {
+            input,
+
+            tools: tools.map(
+                (tool) => tool.definition,
+            ),
+        },
+        1,
+    )
+
+    let response = firstCall.response
+
+    modelSteps.push(firstCall.modelStep)
+    addUsage(firstCall.modelStep)
+
+    // Agent Loop
+    for (
+        let agentStep = 0;
+        agentStep < maxSteps;
+        agentStep++
+    ) {
         const toolCalls = response.output.filter(
-            (item) => item.type === "function_call",
+            (item) =>
+                item.type === "function_call",
         )
 
         if (toolCalls.length === 0) {
             return {
                 result: response.output_text,
+
                 steps,
+
+                modelSteps,
 
                 usage: {
                     inputTokens,
@@ -71,41 +132,66 @@ export async function runAgent(
                     totalTokens,
                 },
 
-                durationMs: Date.now() - startedAt,
+                durationMs:
+                    Date.now() - startedAt,
             }
         }
 
         const toolOutputs = []
 
-        for (const toolCall of toolCalls) {
+        for (
+            let toolIndex = 0;
+            toolIndex < toolCalls.length;
+            toolIndex++
+        ) {
+            const toolCall = toolCalls[toolIndex]
+
+            if (!toolCall) {
+                continue
+            }
+
             const tool = tools.find(
                 (item) =>
-                    item.definition.name === toolCall.name,
+                    item.definition.name ===
+                    toolCall.name,
             )
 
+            const stepNumber =
+                steps.length + 1
+
+            // Tool 不存在
             if (!tool) {
-                const error = `Tool not found: ${toolCall.name}`
+                const message =
+                    `Tool not found: ${toolCall.name}`
 
                 steps.push({
-                    stepNumber: step + 1,
+                    stepNumber,
                     toolName: toolCall.name,
-                    arguments: toolCall.arguments,
-                    error,
+                    arguments:
+                        toolCall.arguments,
+                    error: message,
+                    durationMs: 0,
                 })
 
                 toolOutputs.push({
-                    type: "function_call_output" as const,
+                    type:
+                        "function_call_output" as const,
                     call_id: toolCall.call_id,
-                    output: error,
+                    output: message,
                 })
 
                 continue
             }
 
-            let args: any
+            const toolStartedAt =
+                Date.now()
+
+            let args: unknown
 
             try {
-                args = JSON.parse(toolCall.arguments)
+                args = JSON.parse(
+                    toolCall.arguments,
+                )
 
                 const toolResult =
                     await tool.execute(args)
@@ -116,14 +202,18 @@ export async function runAgent(
                         : JSON.stringify(toolResult)
 
                 steps.push({
-                    stepNumber: step + 1,
+                    stepNumber,
                     toolName: toolCall.name,
                     arguments: args,
                     output,
+                    durationMs:
+                        Date.now() -
+                        toolStartedAt,
                 })
 
                 toolOutputs.push({
-                    type: "function_call_output" as const,
+                    type:
+                        "function_call_output" as const,
                     call_id: toolCall.call_id,
                     output,
                 })
@@ -134,32 +224,54 @@ export async function runAgent(
                         : "Tool execution failed"
 
                 steps.push({
-                    stepNumber: step + 1,
+                    stepNumber,
                     toolName: toolCall.name,
                     arguments:
-                        args ?? toolCall.arguments,
+                        args ??
+                        toolCall.arguments,
                     error: message,
+                    durationMs:
+                        Date.now() -
+                        toolStartedAt,
                 })
 
                 toolOutputs.push({
-                    type: "function_call_output" as const,
+                    type:
+                        "function_call_output" as const,
                     call_id: toolCall.call_id,
+
+                    // 这里把失败结果也告诉模型，
+                    // 让模型决定是否换一种方式继续
                     output:
                         `Tool execution failed: ${message}`,
                 })
             }
         }
 
-        response = await openai.responses.create({
-            model: "gpt-5.6",
-            previous_response_id: response.id,
-            input: toolOutputs,
-            tools: tools.map(
-                (tool) => tool.definition,
-            ),
-        })
+        // 把所有 Tool Result 回传模型
+        const nextCall = await callModel(
+            {
+                model: "gpt-5.6",
 
-        collectUsage()
+                previous_response_id:
+                    response.id,
+
+                input: toolOutputs,
+
+                tools: tools.map(
+                    (tool) => tool.definition,
+                ),
+            },
+            modelSteps.length + 1,
+        )
+
+        response = nextCall.response
+
+        modelSteps.push(
+            nextCall.modelStep,
+        )
+
+        addUsage(nextCall.modelStep)
     }
 
     throw new Error(

@@ -46,6 +46,7 @@ export class AgentRunRepository {
         arguments: unknown
         output?: string | null
         error?: string | null
+        durationMs?: number | null
     }) {
         const [step] = await db
             .insert(agentSteps)
@@ -68,6 +69,10 @@ export class AgentRunRepository {
             status?: "running" | "completed" | "failed"
             result?: string | null
             error?: string | null
+            durationMs?: number | null
+            inputTokens?: number | null
+            outputTokens?: number | null
+            totalTokens?: number | null
         },
     ) {
         const [run] = await db
