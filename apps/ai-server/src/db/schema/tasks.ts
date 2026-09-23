@@ -6,6 +6,7 @@ import {
     jsonb,
     timestamp,
 } from "drizzle-orm/pg-core"
+import type { TaskPlan } from "../../modules/task/domain/task-plan.schema.js"
 
 export const taskStatusEnum = pgEnum("task_status", [
     "planning",
@@ -22,7 +23,7 @@ export const tasks = pgTable("tasks", {
 
     status: taskStatusEnum("status").notNull(),
 
-    plan: jsonb("plan"),
+    plan: jsonb("plan").$type<TaskPlan>(),
 
     error: text("error"),
 
@@ -38,3 +39,6 @@ export const tasks = pgTable("tasks", {
         .notNull()
         .defaultNow(),
 })
+
+export type TaskRecord = typeof tasks.$inferSelect
+export type NewTaskRecord = typeof tasks.$inferInsert

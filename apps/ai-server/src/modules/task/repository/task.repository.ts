@@ -1,32 +1,27 @@
 import { eq } from "drizzle-orm"
 import { db } from "../../../db/client.js"
-import { tasks } from "../../../db/schema/tasks.js"
-import type { TaskStatus } from "../domain/task.types.js"
-import type { TaskPlan } from "../domain/task-plan.schema.js"
+import { tasks, type NewTaskRecord, type TaskRecord } from "../../../db/schema/tasks.js"
+import type { UpdateTaskData } from "./task.repository.types.js"
 
 
 export class TaskRepository {
-    async create(params: {
-        id: string
-        input: string
-        status: TaskStatus
-    }) {
+    async create(data: NewTaskRecord): Promise<TaskRecord> {
         const [task] = await db
             .insert(tasks)
-            .values(params)
+            .values(data)
             .returning()
+
+        if (!task) {
+            throw new Error("Failed to create task")
+        }
 
         return task
     }
 
     async update(
         id: string,
-        data: {
-            status?: TaskStatus
-            plan?: TaskPlan | null
-            error?: string | null
-        },
-    ) {
+        data: UpdateTaskData,
+    ): Promise<TaskRecord> {
         const [task] = await db
             .update(tasks)
             .set({
@@ -36,10 +31,14 @@ export class TaskRepository {
             .where(eq(tasks.id, id))
             .returning()
 
+        if (!task) {
+            throw new Error(`Task not found: ${id}`)
+        }
+
         return task
     }
 
-    async findById(id: string) {
+    async findById(id: string): Promise<TaskRecord | undefined> {
         const [task] = await db
             .select()
             .from(tasks)

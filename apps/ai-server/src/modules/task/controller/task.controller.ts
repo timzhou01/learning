@@ -1,6 +1,7 @@
 import type { Request, Response } from "express"
 import { TaskService } from "../service/task.service.js"
 import { CreateTaskSchema } from "../domain/create-task.schema.js"
+import { AppError } from "../../../common/app.error.js"
 
 export class TaskController {
     constructor(
@@ -11,10 +12,12 @@ export class TaskController {
         const result = CreateTaskSchema.safeParse(req.body)
 
         if (!result.success) {
-            return res.status(400).json({
-                error: "Invalid request",
-                details: result.error.flatten(),
-            })
+            throw new AppError(
+                result.error.issues
+                    .map((item) => item.message)
+                    .join(", "),
+                400,
+            )
         }
         console.log('input', result.data.input)
         const task = await this.taskService.createTask(
@@ -29,11 +32,16 @@ export class TaskController {
             req.params.id as string,
         )
 
-        if (!task) {
-            return res.status(404).json({
-                error: "Task not found",
-            })
-        }
+        return res.json(task)
+    }
+
+    runTask = async (
+        req: Request,
+        res: Response,
+    ) => {
+        const task = await this.taskService.runTask(
+            req.params.id as string,
+        )
 
         return res.json(task)
     }

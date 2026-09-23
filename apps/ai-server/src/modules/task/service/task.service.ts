@@ -4,11 +4,31 @@ import { canTransition } from "../domain/task.types.js"
 import type { TaskRepository } from "../repository/task.repository.js"
 import { generateTaskPlan } from "../../../ai/generate-task-plan.js"
 import type { TaskPlan } from "../domain/task-plan.schema.js"
+import { AppError } from "../../../common/app.error.js"
 
 export class TaskService {
     constructor(
         private readonly taskRepository: TaskRepository,
     ) { }
+
+    async runTask(id: string) {
+        const task = await this.taskRepository.findById(id)
+
+        if (!task) {
+            throw new AppError(`Task not found: ${id}`, 404)
+        }
+
+        if (!canTransition(task.status, "running")) {
+            throw new AppError(
+                `Invalid task status transition: ${task.status} -> running`,
+                409,
+            )
+        }
+
+        return this.taskRepository.update(id, {
+            status: "running",
+        })
+    }
 
     async createTask(input: string) {
         const id = randomUUID()
@@ -42,8 +62,9 @@ export class TaskService {
         const currentStatus = task.status as TaskStatus
 
         if (!canTransition(currentStatus, nextStatus)) {
-            throw new Error(
+            throw new AppError(
                 `Invalid task status transition: ${currentStatus} -> ${nextStatus}`,
+                409,
             )
         }
 
@@ -75,6 +96,12 @@ export class TaskService {
     }
 
     async getTaskById(id: string) {
-        return this.taskRepository.findById(id)
+        const task = await this.taskRepository.findById(id)
+
+        if (!task) {
+            throw new AppError(`Task not found: ${id}`, 404)
+        }
+
+        return task
     }
 }

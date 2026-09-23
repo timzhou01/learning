@@ -11,3 +11,4 @@ export const taskRouter: Router = Router()
 
 taskRouter.post("/", taskController.createTask)
 taskRouter.get("/:id", taskController.getTaskById)
+taskRouter.post("/:id/run", taskController.runTask)

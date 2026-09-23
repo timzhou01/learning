@@ -2,12 +2,15 @@ import "dotenv/config"
 import express from "express"
 
 import { taskRouter } from "./modules/task/task.routes.js"
+import { errorMiddleware } from "./common/error.middleware.js"
 
 const app = express()
 
 app.use(express.json())
 
 app.use("/tasks", taskRouter)
+
+app.use(errorMiddleware)
 
 const port = Number(process.env.PORT ?? 3000)
 
