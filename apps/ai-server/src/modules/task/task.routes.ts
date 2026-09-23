@@ -5,10 +5,14 @@ import { TaskService } from "./service/task.service.js"
 import { TaskController } from "./controller/task.controller.js"
 import { AgentRunController } from "./controller/agent-run.controller.js"
 import { AgentRunService } from "./service/agent-run.service.js"
+import { TaskReviewRepository } from "./repository/task-review.repository.js"
 
 const taskRepository = new TaskRepository()
 const agentRunRepository = new AgentRunRepository()
-const taskService = new TaskService(taskRepository, agentRunRepository)
+const taskReviewRepository =
+    new TaskReviewRepository()
+
+const taskService = new TaskService(taskRepository, agentRunRepository, taskReviewRepository)
 const taskController = new TaskController(taskService)
 const agentRunService = new AgentRunService(agentRunRepository)
 const agentRunController = new AgentRunController(agentRunService)
@@ -36,4 +40,9 @@ taskRouter.post(
 taskRouter.post(
     "/:id/reject",
     taskController.rejectTask,
+)
+
+taskRouter.get(
+    "/:id/reviews",
+    taskController.getTaskReviews,
 )

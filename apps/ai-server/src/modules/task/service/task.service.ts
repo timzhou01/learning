@@ -9,11 +9,13 @@ import { LocalWorkspace } from "../../../workspace/local-workspace.js"
 import { runAgent } from "../../../ai/run-with-tools.js"
 import type { AgentRunRepository } from "../repository/agent-run.repository.js"
 import { WorkspaceManager } from "../../../workspace/workspace-manager.js"
+import type { TaskReviewRepository } from "../repository/task-review.repository.js"
 
 export class TaskService {
     constructor(
         private readonly taskRepository: TaskRepository,
         private readonly agentRunRepository: AgentRunRepository,
+        private readonly taskReviewRepository: TaskReviewRepository,
     ) { }
 
     async runTask(id: string) {
@@ -150,6 +152,8 @@ export class TaskService {
 
     async approveTask(
         id: string,
+        reviewer: string,
+        comment?: string,
     ) {
         const task =
             await this.taskRepository.findById(id)
@@ -161,7 +165,10 @@ export class TaskService {
             )
         }
 
-        if (!canTransition(task.status, "approved")) {
+        if (!canTransition(
+            task.status,
+            "approved",
+        )) {
             throw new AppError(
                 `Invalid task status transition: ${task.status} -> approved`,
                 409,
@@ -189,14 +196,21 @@ export class TaskService {
 
         await workspaceManager.approveTask(id)
 
-
+        await this.taskReviewRepository.createReview({
+            taskId: id,
+            decision: "approved",
+            reviewer,
+            ...(comment !== undefined
+                ? { comment }
+                : {}),
+        })
 
         return this.taskRepository.update(id, {
             status: "approved",
         })
     }
 
-    async rejectTask(id: string) {
+    async getTaskReviews(id: string) {
         const task =
             await this.taskRepository.findById(id)
 
@@ -207,7 +221,28 @@ export class TaskService {
             )
         }
 
-        if (!canTransition(task.status, "rejected")) {
+        return this.taskReviewRepository.findByTaskId(id)
+    }
+
+    async rejectTask(
+        id: string,
+        reviewer: string,
+        comment?: string,
+    ) {
+        const task =
+            await this.taskRepository.findById(id)
+
+        if (!task) {
+            throw new AppError(
+                `Task not found: ${id}`,
+                404,
+            )
+        }
+
+        if (!canTransition(
+            task.status,
+            "rejected",
+        )) {
             throw new AppError(
                 `Invalid task status transition: ${task.status} -> rejected`,
                 409,
@@ -234,6 +269,15 @@ export class TaskService {
             )
 
         await workspaceManager.rejectTask(id)
+
+        await this.taskReviewRepository.createReview({
+            taskId: id,
+            decision: "rejected",
+            reviewer,
+            ...(comment !== undefined
+                ? { comment }
+                : {}),
+        })
 
         return this.taskRepository.update(id, {
             status: "rejected",

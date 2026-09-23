@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express"
 import { TaskService } from "../service/task.service.js"
 import { CreateTaskSchema } from "../domain/create-task.schema.js"
 import { AppError } from "../../../common/app.error.js"
+import { TaskReviewInputSchema } from "../domain/task-review.schema.js"
 
 export class TaskController {
     constructor(
@@ -52,9 +53,16 @@ export class TaskController {
         next: NextFunction,
     ) => {
         try {
+            const input =
+                TaskReviewInputSchema.parse(
+                    req.body,
+                )
+
             const result =
                 await this.taskService.approveTask(
                     req.params.id as string,
+                    input.reviewer,
+                    input.comment,
                 )
 
             res.json(result)
@@ -69,12 +77,36 @@ export class TaskController {
         next: NextFunction,
     ) => {
         try {
+            const input =
+                TaskReviewInputSchema.parse(
+                    req.body,
+                )
+
             const result =
                 await this.taskService.rejectTask(
                     req.params.id as string,
+                    input.reviewer,
+                    input.comment,
                 )
 
             res.json(result)
+        } catch (error) {
+            next(error)
+        }
+    }
+
+    getTaskReviews = async (
+        req: Request,
+        res: Response,
+        next: NextFunction,
+    ) => {
+        try {
+            const reviews =
+                await this.taskService.getTaskReviews(
+                    req.params.id as string,
+                )
+
+            res.json(reviews)
         } catch (error) {
             next(error)
         }
