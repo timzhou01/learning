@@ -520,4 +520,36 @@ export class TaskService {
 
         return task
     }
+
+    async getTaskDiff(id: string) {
+        const task =
+            await this.taskRepository.findById(id)
+
+        if (!task) {
+            throw new AppError(
+                `Task not found: ${id}`,
+                404,
+            )
+        }
+
+        const workspaceBase =
+            process.env.AGENT_WORKSPACE_BASE
+
+        if (!workspaceBase) {
+            throw new AppError(
+                "Agent workspace configuration is missing",
+                500,
+            )
+        }
+
+        const workspacePath =
+            `${workspaceBase}/${id}`
+
+        const workspace =
+            new LocalWorkspace(workspacePath)
+
+        return {
+            diff: await workspace.getGitDiffFromBase(),
+        }
+    }
 }

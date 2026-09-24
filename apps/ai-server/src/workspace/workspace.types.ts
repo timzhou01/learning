@@ -8,6 +8,7 @@ export interface Workspace {
         command: string,
         args: string[],
     ): Promise<CommandResult>
+    getGitDiffFromBase(): Promise<string>
 }
 
 export type CommandResult = {

@@ -111,4 +111,16 @@ export class TaskController {
             next(error)
         }
     }
+
+    getTaskDiff = async (
+        req: Request,
+        res: Response,
+    ) => {
+        const result =
+            await this.taskService.getTaskDiff(
+                req.params.id as string,
+            )
+
+        res.json(result)
+    }
 }

@@ -197,4 +197,21 @@ export class LocalWorkspace implements Workspace {
             args,
         )
     }
+
+    async getGitDiffFromBase(): Promise<string> {
+        const { stdout } = await execFileAsync(
+            "git",
+            [
+                "diff",
+                "HEAD~1",
+                "HEAD",
+            ],
+            {
+                cwd: this.root,
+                maxBuffer: 10 * 1024 * 1024,
+            },
+        )
+
+        return stdout
+    }
 }

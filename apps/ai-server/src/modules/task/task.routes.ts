@@ -46,3 +46,8 @@ taskRouter.get(
     "/:id/reviews",
     taskController.getTaskReviews,
 )
+
+taskRouter.get(
+    "/:id/diff",
+    taskController.getTaskDiff,
+)

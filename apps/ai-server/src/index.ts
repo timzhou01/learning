@@ -3,10 +3,14 @@ import express from "express"
 
 import { taskRouter } from "./modules/task/task.routes.js"
 import { errorMiddleware } from "./common/error.middleware.js"
+import cors from "cors"
 
 const app = express()
 
+app.use(cors())
+
 app.use(express.json())
+
 
 app.use("/tasks", taskRouter)
 

@@ -1,0 +1,343 @@
+body {
+  margin: 0;
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+
+  background: #f6f7f9;
+  color: #1f2937;
+}
+
+button,
+textarea {
+  font: inherit;
+}
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 40px 20px 80px;
+}
+
+.pageHeader h1 {
+  margin: 0;
+  font-size: 30px;
+}
+
+.pageHeader p {
+  margin-top: 8px;
+  color: #6b7280;
+}
+
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 20px;
+
+  border: 1px solid #e5e7eb;
+
+  box-shadow:
+    0 2px 10px rgba(0, 0, 0, 0.04);
+}
+
+textarea {
+  width: 100%;
+  box-sizing: border-box;
+
+  padding: 12px;
+
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+
+  resize: vertical;
+
+  outline: none;
+}
+
+textarea:focus {
+  border-color: #2563eb;
+
+  box-shadow:
+    0 0 0 3px
+      rgba(37, 99, 235, 0.1);
+}
+
+.actions,
+.reviewActions {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+button {
+  padding: 10px 16px;
+
+  border: 0;
+  border-radius: 8px;
+
+  background: #2563eb;
+  color: white;
+
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.dangerButton {
+  background: #dc2626;
+}
+
+.taskHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 16px;
+}
+
+.statusArea {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.status {
+  padding: 4px 10px;
+
+  border-radius: 999px;
+
+  background: #e5e7eb;
+
+  font-size: 12px;
+  text-transform: capitalize;
+}
+
+.status-ready {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-planning,
+.status-running {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-waiting_approval {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.status-approved {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-rejected,
+.status-failed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.polling {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.pollingDot {
+  width: 7px;
+  height: 7px;
+
+  border-radius: 50%;
+
+  background: #2563eb;
+
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.3;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0.3;
+  }
+}
+
+.taskId {
+  font-size: 12px;
+  color: #9ca3af;
+
+  word-break: break-all;
+}
+
+pre {
+  background: #f8fafc;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+
+  padding: 12px;
+
+  overflow: auto;
+
+  white-space: pre-wrap;
+  word-break: break-word;
+
+  font-size: 13px;
+}
+
+.error {
+  color: #b91c1c;
+}
+
+.runStats {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      auto-fit,
+      minmax(140px, 1fr)
+    );
+
+  gap: 12px;
+
+  margin-top: 16px;
+}
+
+.runStats div {
+  padding: 12px;
+
+  background: #f8fafc;
+
+  border-radius: 8px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.runStats span {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.runStats strong {
+  font-size: 16px;
+}
+
+.step {
+  border-top: 1px solid #e5e7eb;
+}
+
+.stepHeader {
+  width: 100%;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  padding: 14px 0;
+
+  background: transparent;
+  color: #1f2937;
+
+  text-align: left;
+}
+
+.stepBody {
+  padding-bottom: 16px;
+}
+
+.stepError {
+  border-left: 3px solid #dc2626;
+  padding-left: 12px;
+}
+
+.stepErrorLabel {
+  margin-left: 8px;
+
+  color: #dc2626;
+
+  font-size: 12px;
+}
+
+.stepCount {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.reviewBox {
+  margin-top: 20px;
+}
+
+.reviewItem {
+  border-top: 1px solid #e5e7eb;
+
+  padding: 12px 0;
+}
+
+.reviewHeader {
+  display: flex;
+  justify-content: space-between;
+}
+
+.diff {
+  margin-top: 12px;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+
+  overflow: auto;
+
+  background: #fafafa;
+
+  font-family:
+    "SFMono-Regular",
+    Consolas,
+    monospace;
+
+  font-size: 13px;
+}
+
+.diffLine {
+  padding: 2px 10px;
+
+  white-space: pre;
+
+  min-width: max-content;
+}
+
+.diffAdded {
+  background: #eaf7ed;
+}
+
+.diffRemoved {
+  background: #fdecec;
+}
+
+.diffMeta {
+  background: #eef2ff;
+  color: #555;
+}
