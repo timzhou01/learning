@@ -1,37 +1,71 @@
-import type { NextFunction, Request, Response } from "express"
-import { TaskService } from "../service/task.service.js"
-import { CreateTaskSchema } from "../domain/create-task.schema.js"
-import { AppError } from "../../../common/app.error.js"
-import { TaskReviewInputSchema } from "../domain/task-review.schema.js"
+import type {
+    NextFunction,
+    Request,
+    Response,
+} from "express"
+
+import {
+    TaskService,
+} from "../service/task.service.js"
+
+import {
+    CreateTaskSchema,
+} from "../domain/create-task.schema.js"
+
+import {
+    AppError,
+} from "../../../common/app.error.js"
+
+import {
+    TaskReviewInputSchema,
+} from "../domain/task-review.schema.js"
 
 export class TaskController {
     constructor(
-        private readonly taskService: TaskService,
+        private readonly taskService:
+            TaskService,
     ) { }
 
-    createTask = async (req: Request, res: Response) => {
-        const result = CreateTaskSchema.safeParse(req.body)
+    createTask = async (
+        req: Request,
+        res: Response,
+    ) => {
+        const result =
+            CreateTaskSchema.safeParse(
+                req.body,
+            )
 
         if (!result.success) {
             throw new AppError(
                 result.error.issues
-                    .map((item) => item.message)
+                    .map(
+                        (item) =>
+                            item.message,
+                    )
                     .join(", "),
                 400,
             )
         }
-        console.log('input', result.data.input)
-        const task = await this.taskService.createTask(
-            result.data.input,
-        )
 
-        return res.status(201).json(task)
+        const task =
+            await this.taskService.createTask(
+                result.data.projectId,
+                result.data.input,
+            )
+
+        return res
+            .status(201)
+            .json(task)
     }
 
-    getTaskById = async (req: Request, res: Response) => {
-        const task = await this.taskService.getTaskById(
-            req.params.id as string,
-        )
+    getTaskById = async (
+        req: Request,
+        res: Response,
+    ) => {
+        const task =
+            await this.taskService.getTaskById(
+                req.params.id as string,
+            )
 
         return res.json(task)
     }
@@ -40,9 +74,10 @@ export class TaskController {
         req: Request,
         res: Response,
     ) => {
-        const task = await this.taskService.runTask(
-            req.params.id as string,
-        )
+        const task =
+            await this.taskService.runTask(
+                req.params.id as string,
+            )
 
         return res.json(task)
     }

@@ -12,6 +12,7 @@ import { WorkspaceManager } from "../../../workspace/workspace-manager.js"
 import type { TaskReviewRepository } from "../repository/task-review.repository.js"
 import { WorkspaceValidator, type ValidationResult } from "../../../workspace/workspace-validator.js"
 import type { Workspace } from "../../../workspace/workspace.types.js"
+import type { ProjectRepository } from "../../project/repository/project.repository.js"
 
 type ValidationAttempt = {
     attempt: number
@@ -138,6 +139,8 @@ export class TaskService {
         private readonly taskRepository: TaskRepository,
         private readonly agentRunRepository: AgentRunRepository,
         private readonly taskReviewRepository: TaskReviewRepository,
+        private readonly projectRepository:
+            ProjectRepository,
     ) { }
 
     async runTask(id: string) {
@@ -178,16 +181,25 @@ export class TaskService {
                 id,
             )
 
+        const project =
+            await this.projectRepository.findById(
+                task.projectId,
+            )
+
+        if (!project) {
+            throw new AppError(
+                `Project not found: ${task.projectId}`,
+                404,
+            )
+        }
+
         const sourceRepo =
-            process.env.AGENT_SOURCE_REPO
+            project.repositoryPath
 
         const workspaceBase =
             process.env.AGENT_WORKSPACE_BASE
 
-        if (
-            !sourceRepo ||
-            !workspaceBase
-        ) {
+        if (!workspaceBase) {
             throw new AppError(
                 "Agent workspace configuration is missing",
                 500,
@@ -428,13 +440,25 @@ export class TaskService {
             )
         }
 
+        const project =
+            await this.projectRepository.findById(
+                task.projectId,
+            )
+
+        if (!project) {
+            throw new AppError(
+                `Project not found: ${task.projectId}`,
+                404,
+            )
+        }
+
         const sourceRepo =
-            process.env.AGENT_SOURCE_REPO
+            project.repositoryPath
 
         const workspaceBase =
             process.env.AGENT_WORKSPACE_BASE
 
-        if (!sourceRepo || !workspaceBase) {
+        if (!workspaceBase) {
             await this.taskRepository.transitionStatus(
                 id,
                 "approving",
@@ -543,13 +567,25 @@ export class TaskService {
             )
         }
 
+        const project =
+            await this.projectRepository.findById(
+                task.projectId,
+            )
+
+        if (!project) {
+            throw new AppError(
+                `Project not found: ${task.projectId}`,
+                404,
+            )
+        }
+
         const sourceRepo =
-            process.env.AGENT_SOURCE_REPO
+            project.repositoryPath
 
         const workspaceBase =
             process.env.AGENT_WORKSPACE_BASE
 
-        if (!sourceRepo || !workspaceBase) {
+        if (!workspaceBase) {
             await this.taskRepository.transitionStatus(
                 id,
                 "rejecting",
@@ -606,16 +642,25 @@ export class TaskService {
         }
     }
 
-    async createTask(input: string) {
-        const id = randomUUID()
+    async createTask(
+        projectId: string,
+        input: string,
+    ) {
+        const id =
+            randomUUID()
 
-        const task = await this.taskRepository.create({
+        const task =
+            await this.taskRepository.create({
+                id,
+                projectId,
+                input,
+                status: "planning",
+            })
+
+        void this.generatePlan(
             id,
             input,
-            status: "planning",
-        })
-
-        void this.generatePlan(id, input)
+        )
 
         return task
     }

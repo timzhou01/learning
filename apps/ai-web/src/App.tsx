@@ -26,6 +26,13 @@ type TaskPlan = {
   steps?: string[]
 }
 
+type Project = {
+  id: string
+  name: string
+  repositoryPath: string
+  defaultBranch: string
+}
+
 type Task = {
   id: string
   input: string
@@ -225,6 +232,14 @@ function App() {
   const [error, setError] =
     useState<string | null>(null)
 
+  const [projects, setProjects] =
+    useState<Project[]>([])
+
+  const [
+    selectedProjectId,
+    setSelectedProjectId,
+  ] = useState("")
+
   const [
     activeStep,
     setActiveStep,
@@ -334,6 +349,33 @@ function App() {
     }
 
     setPolling(false)
+  }
+
+  const fetchProjects = async () => {
+    const response =
+      await fetch(
+        `${API_URL}/projects`,
+      )
+
+    if (!response.ok) {
+      throw new Error(
+        "Failed to get projects",
+      )
+    }
+
+    const data: Project[] =
+      await response.json()
+
+    setProjects(data)
+
+    if (
+      !selectedProjectId &&
+      data.length > 0
+    ) {
+      setSelectedProjectId(
+        data[0]!.id,
+      )
+    }
   }
 
   const fetchTask = async (
@@ -506,6 +548,14 @@ function App() {
       const value =
         input.trim()
 
+      if (!selectedProjectId) {
+        setError(
+          "Please select a project",
+        )
+
+        return
+      }
+
       if (!value) {
         return
       }
@@ -538,6 +588,8 @@ function App() {
               body:
                 JSON.stringify(
                   {
+                    projectId:
+                      selectedProjectId,
                     input:
                       value,
                   },
@@ -726,6 +778,10 @@ function App() {
     }
 
   useEffect(() => {
+    void fetchProjects()
+  }, [])
+
+  useEffect(() => {
     return () => {
       stopPolling()
     }
@@ -746,6 +802,33 @@ function App() {
         </div>
 
         <div className="topbarRight">
+          <select
+            value={
+              selectedProjectId
+            }
+            onChange={(e) =>
+              setSelectedProjectId(
+                e.target.value,
+              )
+            }
+          >
+            {projects.map(
+              (project) => (
+                <option
+                  key={
+                    project.id
+                  }
+                  value={
+                    project.id
+                  }
+                >
+                  {
+                    project.name
+                  }
+                </option>
+              ),
+            )}
+          </select>
           {polling && (
             <span className="polling">
               <span className="pollingDot" />
@@ -1784,8 +1867,8 @@ function AgentStepItem({
   return (
     <div
       className={`agentStep ${step.error
-          ? "agentStepError"
-          : ""
+        ? "agentStepError"
+        : ""
         }`}
     >
       <button

@@ -6,45 +6,81 @@ import {
     jsonb,
     timestamp,
 } from "drizzle-orm/pg-core"
-import type { TaskPlan } from "../../modules/task/domain/task-plan.schema.js"
 
-export const taskStatusEnum = pgEnum("task_status", [
-    "planning",
-    "ready",
-    "running",
-    "waiting_approval",
-    "approving",
-    "rejecting",
-    "approved",
-    "rejected",
-    "failed",
-])
+import type {
+    TaskPlan,
+} from "../../modules/task/domain/task-plan.schema.js"
 
-export const tasks = pgTable("tasks", {
-    id: uuid("id").primaryKey(),
+import {
+    projects,
+} from "./projects.js"
 
-    input: text("input").notNull(),
+export const taskStatusEnum = pgEnum(
+    "task_status",
+    [
+        "planning",
+        "ready",
+        "running",
+        "waiting_approval",
+        "approving",
+        "rejecting",
+        "approved",
+        "rejected",
+        "failed",
+    ],
+)
 
-    status: taskStatusEnum("status").notNull(),
+export const tasks = pgTable(
+    "tasks",
+    {
+        id: uuid("id")
+            .primaryKey(),
 
-    plan: jsonb("plan").$type<TaskPlan>(),
+        projectId: uuid(
+            "project_id",
+        )
+            .notNull()
+            .references(
+                () => projects.id,
+            ),
 
-    error: text("error"),
+        input: text("input")
+            .notNull(),
 
-    result: text("result"),
+        status: taskStatusEnum(
+            "status",
+        )
+            .notNull(),
 
-    createdAt: timestamp("created_at", {
-        withTimezone: true,
-    })
-        .notNull()
-        .defaultNow(),
+        plan: jsonb("plan")
+            .$type<TaskPlan>(),
 
-    updatedAt: timestamp("updated_at", {
-        withTimezone: true,
-    })
-        .notNull()
-        .defaultNow(),
-})
+        error: text("error"),
 
-export type TaskRecord = typeof tasks.$inferSelect
-export type NewTaskRecord = typeof tasks.$inferInsert
+        result: text("result"),
+
+        createdAt: timestamp(
+            "created_at",
+            {
+                withTimezone: true,
+            },
+        )
+            .notNull()
+            .defaultNow(),
+
+        updatedAt: timestamp(
+            "updated_at",
+            {
+                withTimezone: true,
+            },
+        )
+            .notNull()
+            .defaultNow(),
+    },
+)
+
+export type TaskRecord =
+    typeof tasks.$inferSelect
+
+export type NewTaskRecord =
+    typeof tasks.$inferInsert
