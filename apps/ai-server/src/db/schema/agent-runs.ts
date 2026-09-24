@@ -4,6 +4,7 @@ import {
     text,
     timestamp,
     integer,
+    jsonb,
 } from "drizzle-orm/pg-core"
 
 import { tasks } from "./tasks.js"
@@ -28,6 +29,10 @@ export const agentRuns = pgTable("agent_runs", {
     outputTokens: integer("output_tokens"),
 
     totalTokens: integer("total_tokens"),
+
+    validationResults: jsonb("validation_results"),
+
+    validationAttempts: jsonb("validation_attempts"),
 
     createdAt: timestamp("created_at", {
         withTimezone: true,

@@ -16,6 +16,14 @@ export const agentSteps = pgTable("agent_steps", {
         .notNull()
         .references(() => agentRuns.id),
 
+    attempt: integer("attempt")
+        .notNull()
+        .default(1),
+
+    phase: text("phase")
+        .notNull()
+        .default("initial"),
+
     stepNumber: integer("step_number").notNull(),
 
     toolName: text("tool_name").notNull(),

@@ -4,14 +4,26 @@ import { canTransition } from "../domain/task.types.js"
 import type { TaskRepository } from "../repository/task.repository.js"
 import { generateTaskPlan } from "../../../ai/generate-task-plan.js"
 import type { TaskPlan } from "../domain/task-plan.schema.js"
-import { AgentRunError, AppError } from "../../../common/app.error.js"
+import { AppError } from "../../../common/app.error.js"
 import { LocalWorkspace } from "../../../workspace/local-workspace.js"
-import { runAgent } from "../../../ai/run-with-tools.js"
+import { runAgent, type AgentRunResult } from "../../../ai/run-with-tools.js"
 import type { AgentRunRepository } from "../repository/agent-run.repository.js"
 import { WorkspaceManager } from "../../../workspace/workspace-manager.js"
 import type { TaskReviewRepository } from "../repository/task-review.repository.js"
-import { WorkspaceValidator } from "../../../workspace/workspace-validator.js"
+import { WorkspaceValidator, type ValidationResult } from "../../../workspace/workspace-validator.js"
 import type { Workspace } from "../../../workspace/workspace.types.js"
+
+type ValidationAttempt = {
+    attempt: number
+    type: "initial" | "repair"
+    results: ValidationResult[]
+}
+
+type AgentAttempt = {
+    attempt: number
+    phase: "initial" | "repair"
+    result: AgentRunResult
+}
 
 async function runAgentWithValidation(
     input: string,
@@ -22,11 +34,23 @@ async function runAgentWithValidation(
     const validator =
         new WorkspaceValidator()
 
+    const validationAttempts:
+        ValidationAttempt[] = []
+
+    const agentAttempts:
+        AgentAttempt[] = []
+
     let agentResult =
         await runAgent(
             input,
             workspace,
         )
+
+    agentAttempts.push({
+        attempt: 1,
+        phase: "initial",
+        result: agentResult,
+    })
 
     for (
         let attempt = 0;
@@ -39,6 +63,15 @@ async function runAgentWithValidation(
                 workspace,
             )
 
+        validationAttempts.push({
+            attempt: attempt + 1,
+            type:
+                attempt === 0
+                    ? "initial"
+                    : "repair",
+            results: validationResults,
+        })
+
         const failed =
             validationResults.filter(
                 (result) => !result.passed,
@@ -47,14 +80,20 @@ async function runAgentWithValidation(
         if (failed.length === 0) {
             return {
                 agentResult,
+                agentAttempts,
                 validationResults,
+                validationAttempts,
             }
         }
 
-        if (attempt === maxRepairAttempts) {
+        if (
+            attempt ===
+            maxRepairAttempts
+        ) {
             throw new Error(
                 [
                     "Validation failed after repair attempts.",
+
                     ...failed.map(
                         (item) =>
                             `${item.name}:\n${item.output}`,
@@ -69,6 +108,7 @@ async function runAgentWithValidation(
             "Do not undo unrelated changes.",
             "After fixing, finish the task normally.",
             "",
+
             ...failed.map(
                 (item) =>
                     `${item.name} failed:\n${item.output}`,
@@ -80,6 +120,12 @@ async function runAgentWithValidation(
                 repairInput,
                 workspace,
             )
+
+        agentAttempts.push({
+            attempt: attempt + 2,
+            phase: "repair",
+            result: agentResult,
+        })
     }
 
     throw new Error(
@@ -95,37 +141,53 @@ export class TaskService {
     ) { }
 
     async runTask(id: string) {
-        const task = await this.taskRepository.findById(id)
+        const task =
+            await this.taskRepository.findById(
+                id,
+            )
 
         if (!task) {
-            throw new AppError(`Task not found: ${id}`, 404)
+            throw new AppError(
+                `Task not found: ${id}`,
+                404,
+            )
         }
 
-        if (!canTransition(task.status, "running")) {
+        if (
+            !canTransition(
+                task.status,
+                "running",
+            )
+        ) {
             throw new AppError(
                 `Invalid task status transition: ${task.status} -> running`,
                 409,
             )
         }
 
-        await this.taskRepository.update(id, {
-            status: "running",
-            error: null,
-        })
+        await this.taskRepository.update(
+            id,
+            {
+                status: "running",
+                error: null,
+            },
+        )
 
         const run =
-            await this.agentRunRepository.createRun(id)
+            await this.agentRunRepository.createRun(
+                id,
+            )
 
-        // const workspace = new LocalWorkspace(
-        //     process.cwd(),
-        // )
         const sourceRepo =
             process.env.AGENT_SOURCE_REPO
 
         const workspaceBase =
             process.env.AGENT_WORKSPACE_BASE
 
-        if (!sourceRepo || !workspaceBase) {
+        if (
+            !sourceRepo ||
+            !workspaceBase
+        ) {
             throw new AppError(
                 "Agent workspace configuration is missing",
                 500,
@@ -139,25 +201,31 @@ export class TaskService {
             )
 
         const workspacePath =
-            await workspaceManager.createWorkspace(id)
+            await workspaceManager.createWorkspace(
+                id,
+            )
 
         await workspaceManager.prepareWorkspace(
             workspacePath,
         )
 
         const workspace =
-            new LocalWorkspace(workspacePath)
+            new LocalWorkspace(
+                workspacePath,
+            )
 
         try {
             const {
                 agentResult,
+                agentAttempts,
                 validationResults,
-            } = await runAgentWithValidation(
-                task.input,
-                workspacePath,
-                workspace,
-            )
-
+                validationAttempts,
+            } =
+                await runAgentWithValidation(
+                    task.input,
+                    workspacePath,
+                    workspace,
+                )
 
             const commitHash =
                 await workspaceManager.commitChanges(
@@ -165,50 +233,136 @@ export class TaskService {
                     `agent task ${id}`,
                 )
 
-            // 保存所有 Tool Trace
-            for (const step of agentResult.steps) {
-                await this.agentRunRepository.createStep({
-                    runId: run.id,
-                    stepNumber: step.stepNumber,
-                    toolName: step.toolName,
-                    arguments: step.arguments,
-                    output: step.output ?? null,
-                    error: step.error ?? null,
-                    durationMs: step.durationMs,
-                })
+            for (
+                const attempt of agentAttempts
+            ) {
+                for (
+                    const step of
+                    attempt.result.steps
+                ) {
+                    await this.agentRunRepository.createStep(
+                        {
+                            runId:
+                                run.id,
+
+                            attempt:
+                                attempt.attempt,
+
+                            phase:
+                                attempt.phase,
+
+                            stepNumber:
+                                step.stepNumber,
+
+                            toolName:
+                                step.toolName,
+
+                            arguments:
+                                step.arguments,
+
+                            output:
+                                step.output ??
+                                null,
+
+                            error:
+                                step.error ??
+                                null,
+
+                            durationMs:
+                                step.durationMs,
+                        },
+                    )
+                }
             }
 
-            // 更新 Agent Run
+            const totalDurationMs =
+                agentAttempts.reduce(
+                    (
+                        total,
+                        attempt,
+                    ) =>
+                        total +
+                        attempt.result
+                            .durationMs,
+                    0,
+                )
+
+            const totalInputTokens =
+                agentAttempts.reduce(
+                    (
+                        total,
+                        attempt,
+                    ) =>
+                        total +
+                        attempt.result.usage
+                            .inputTokens,
+                    0,
+                )
+
+            const totalOutputTokens =
+                agentAttempts.reduce(
+                    (
+                        total,
+                        attempt,
+                    ) =>
+                        total +
+                        attempt.result.usage
+                            .outputTokens,
+                    0,
+                )
+
+            const totalTokens =
+                agentAttempts.reduce(
+                    (
+                        total,
+                        attempt,
+                    ) =>
+                        total +
+                        attempt.result.usage
+                            .totalTokens,
+                    0,
+                )
+
             await this.agentRunRepository.updateRun(
                 run.id,
                 {
-                    status: "completed",
+                    status:
+                        "completed",
 
-                    result: agentResult.result,
+                    result:
+                        agentResult.result,
 
-                    error: null,
+                    error:
+                        null,
 
                     durationMs:
-                        agentResult.durationMs,
+                        totalDurationMs,
 
                     inputTokens:
-                        agentResult.usage.inputTokens,
+                        totalInputTokens,
 
                     outputTokens:
-                        agentResult.usage.outputTokens,
+                        totalOutputTokens,
 
-                    totalTokens:
-                        agentResult.usage.totalTokens,
+                    totalTokens,
+
+                    validationResults,
+
+                    validationAttempts,
                 },
             )
 
-            // 更新 Task
             return await this.taskRepository.update(
                 id,
                 {
-                    status: "waiting_approval",
-                    result: agentResult.result,
-                    error: null,
+                    status:
+                        "waiting_approval",
+
+                    result:
+                        agentResult.result,
+
+                    error:
+                        null,
                 },
             )
         } catch (error) {
@@ -220,16 +374,22 @@ export class TaskService {
             await this.agentRunRepository.updateRun(
                 run.id,
                 {
-                    status: "failed",
-                    error: message,
+                    status:
+                        "failed",
+
+                    error:
+                        message,
                 },
             )
 
             return await this.taskRepository.update(
                 id,
                 {
-                    status: "failed",
-                    error: message,
+                    status:
+                        "failed",
+
+                    error:
+                        message,
                 },
             )
         }
