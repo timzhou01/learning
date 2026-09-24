@@ -7,6 +7,8 @@ export type CommandResult = {
     exitCode: number
     stdout: string
     stderr: string
+    durationMs: number
+    timedOut: boolean
 }
 
 export class DockerCommandRunner {
@@ -14,13 +16,13 @@ export class DockerCommandRunner {
         workspacePath: string,
         command: string,
         args: string[],
+        networkEnabled = false,
     ): Promise<CommandResult> {
+        const startedAt = Date.now()
+
         const dockerArgs = [
             "run",
             "--rm",
-
-            "--network",
-            "none",
 
             "--memory",
             "512m",
@@ -31,33 +33,48 @@ export class DockerCommandRunner {
             "-v",
             `${workspacePath}:/workspace`,
 
+            "-v",
+            "task-agent-pnpm-store:/pnpm-store",
+
+            "-e",
+            "npm_config_store_dir=/pnpm-store",
+
             "-w",
             "/workspace",
-
-            "node:22",
-
-            command,
-            ...args,
         ]
 
-        try {
-            const {
-                stdout,
-                stderr,
-            } = await execFileAsync(
-                "docker",
-                dockerArgs,
-                {
-                    timeout: 60_000,
-                    maxBuffer:
-                        10 * 1024 * 1024,
-                },
+        if (!networkEnabled) {
+            dockerArgs.push(
+                "--network",
+                "none",
             )
+        }
+
+        dockerArgs.push(
+            "task-agent-sandbox:local",
+            command,
+            ...args,
+        )
+
+        try {
+            const { stdout, stderr } =
+                await execFileAsync(
+                    "docker",
+                    dockerArgs,
+                    {
+                        timeout: 60_000,
+                        maxBuffer:
+                            10 * 1024 * 1024,
+                    },
+                )
 
             return {
                 exitCode: 0,
                 stdout,
                 stderr,
+                durationMs:
+                    Date.now() - startedAt,
+                timedOut: false,
             }
         } catch (error) {
             const execError =
@@ -78,10 +95,16 @@ export class DockerCommandRunner {
                     execError.stdout ?? "",
 
                 stderr:
-                    execError.killed
-                        ? "Command timed out"
-                        : execError.stderr ?? "",
+                    execError.stderr ?? "",
+
+                durationMs:
+                    Date.now() - startedAt,
+
+                timedOut:
+                    execError.killed === true,
             }
         }
     }
+
+
 }

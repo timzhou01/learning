@@ -2,6 +2,7 @@ import fs from "node:fs/promises"
 import path from "node:path"
 import { execFile } from "node:child_process"
 import { promisify } from "node:util"
+import { DockerCommandRunner } from "./docker-command-runner.js"
 
 const execFileAsync = promisify(execFile)
 
@@ -152,6 +153,32 @@ export class WorkspaceManager {
                 cwd: this.sourceRepo,
             },
         )
+    }
+
+    async prepareWorkspace(
+        workspacePath: string,
+    ): Promise<void> {
+        const runner =
+            new DockerCommandRunner()
+
+        const result = await runner.run(
+            workspacePath,
+            "pnpm",
+            [
+                "install",
+                "--prefer-offline",
+                "--frozen-lockfile",
+                "--store-dir",
+                "/pnpm-store",
+            ],
+            true,
+        )
+
+        if (result.exitCode !== 0) {
+            throw new Error(
+                `Failed to prepare workspace:\n${result.stderr || result.stdout}`,
+            )
+        }
     }
 
     async removeWorkspace(

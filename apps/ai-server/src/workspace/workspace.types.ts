@@ -14,4 +14,5 @@ export type CommandResult = {
     exitCode: number
     stdout: string
     stderr: string
+    durationMs: number
 }

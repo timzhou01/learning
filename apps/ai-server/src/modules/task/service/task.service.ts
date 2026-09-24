@@ -10,6 +10,82 @@ import { runAgent } from "../../../ai/run-with-tools.js"
 import type { AgentRunRepository } from "../repository/agent-run.repository.js"
 import { WorkspaceManager } from "../../../workspace/workspace-manager.js"
 import type { TaskReviewRepository } from "../repository/task-review.repository.js"
+import { WorkspaceValidator } from "../../../workspace/workspace-validator.js"
+import type { Workspace } from "../../../workspace/workspace.types.js"
+
+async function runAgentWithValidation(
+    input: string,
+    workspacePath: string,
+    workspace: Workspace,
+    maxRepairAttempts = 2,
+) {
+    const validator =
+        new WorkspaceValidator()
+
+    let agentResult =
+        await runAgent(
+            input,
+            workspace,
+        )
+
+    for (
+        let attempt = 0;
+        attempt <= maxRepairAttempts;
+        attempt++
+    ) {
+        const validationResults =
+            await validator.validate(
+                workspacePath,
+                workspace,
+            )
+
+        const failed =
+            validationResults.filter(
+                (result) => !result.passed,
+            )
+
+        if (failed.length === 0) {
+            return {
+                agentResult,
+                validationResults,
+            }
+        }
+
+        if (attempt === maxRepairAttempts) {
+            throw new Error(
+                [
+                    "Validation failed after repair attempts.",
+                    ...failed.map(
+                        (item) =>
+                            `${item.name}:\n${item.output}`,
+                    ),
+                ].join("\n\n"),
+            )
+        }
+
+        const repairInput = [
+            "The implementation failed system validation.",
+            "Inspect the errors below and fix the code.",
+            "Do not undo unrelated changes.",
+            "After fixing, finish the task normally.",
+            "",
+            ...failed.map(
+                (item) =>
+                    `${item.name} failed:\n${item.output}`,
+            ),
+        ].join("\n")
+
+        agentResult =
+            await runAgent(
+                repairInput,
+                workspace,
+            )
+    }
+
+    throw new Error(
+        "Unexpected validation state",
+    )
+}
 
 export class TaskService {
     constructor(
@@ -65,14 +141,23 @@ export class TaskService {
         const workspacePath =
             await workspaceManager.createWorkspace(id)
 
+        await workspaceManager.prepareWorkspace(
+            workspacePath,
+        )
+
         const workspace =
             new LocalWorkspace(workspacePath)
 
         try {
-            const agentResult = await runAgent(
+            const {
+                agentResult,
+                validationResults,
+            } = await runAgentWithValidation(
                 task.input,
+                workspacePath,
                 workspace,
             )
+
 
             const commitHash =
                 await workspaceManager.commitChanges(
