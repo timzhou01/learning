@@ -6,7 +6,6 @@ import { errorMiddleware } from "./common/error.middleware.js"
 import cors from "cors"
 import { taskRouter } from "./modules/task/task.routes.js"
 import { projectRouter } from "./modules/project/project.routes.js"
-import { projectRuleRouter } from "./modules/project/project-rule.routes.js"
 
 const app = express()
 
@@ -17,10 +16,6 @@ app.use(express.json())
 
 app.use("/tasks", taskRouter)
 app.use("/projects", projectRouter)
-app.use(
-    "/projects",
-    projectRuleRouter,
-)
 
 app.use(errorMiddleware)
 

@@ -1523,8 +1523,8 @@ function AgentStepItem({
     return (
         <div
             className={`agentStep ${step.error
-                    ? "agentStepError"
-                    : ""
+                ? "agentStepError"
+                : ""
                 }`}
         >
             <button
