@@ -815,56 +815,63 @@ function TaskInspector({
                 </InspectorSection>
             )}
 
-            {!task ? (
-                <EmptyState text="Create a task to start the workflow." />
-            ) : (
-                <>
-                    <InspectorSection title="Task">
-                        <InfoRow
-                            label="Status"
-                            value={
-                                task.status
-                            }
+            <InspectorSection title="Task">
+                <InfoRow
+                    label="Status"
+                    value={
+                        task?.status ??
+                        "Not created"
+                    }
+                />
+
+                {task && (
+                    <InfoRow
+                        label="ID"
+                        value={
+                            task.id
+                        }
+                    />
+                )}
+            </InspectorSection>
+
+            {task?.selectedRules && (
+                <InspectorSection title="Project Context">
+                    {task.selectedRules.length ===
+                        0 ? (
+                        <EmptyState
+                            text="No specific rules selected."
                         />
+                    ) : (
+                        task.selectedRules.map(
+                            (rule) => (
+                                <div
+                                    key={
+                                        rule
+                                    }
+                                    className="infoRow"
+                                >
+                                    <span>
+                                        Rule
+                                    </span>
 
-                        <InfoRow
-                            label="Task ID"
-                            value={
-                                task.id
-                            }
-                        />
-                    </InspectorSection>
-
-                    {task.result && (
-                        <InspectorSection title="Result">
-                            <pre>
-                                {
-                                    task.result
-                                }
-                            </pre>
-                        </InspectorSection>
+                                    <strong>
+                                        {
+                                            rule
+                                        }
+                                    </strong>
+                                </div>
+                            ),
+                        )
                     )}
-
-                    {task.error && (
-                        <InspectorSection title="Error">
-                            <ErrorBlock>
-                                {
-                                    task.error
-                                }
-                            </ErrorBlock>
-                        </InspectorSection>
-                    )}
-                </>
+                </InspectorSection>
             )}
 
             {error && (
-                <InspectorSection title="Error">
-                    <ErrorBlock>
-                        {
-                            error
-                        }
-                    </ErrorBlock>
-                </InspectorSection>
+                <ErrorBlock>
+                    {
+                        error
+                    }
+                </ErrorBlock>
             )}
         </>
     )

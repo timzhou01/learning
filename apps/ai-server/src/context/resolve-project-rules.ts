@@ -84,5 +84,16 @@ include it even if the task does not explicitly mention it.
         )
     }
 
-    return response.output_parsed.rules
+    const rules =
+        response.output_parsed.rules
+
+    console.log(
+        "[Context Resolver]",
+        {
+            task,
+            rules,
+        },
+    )
+
+    return rules
 }

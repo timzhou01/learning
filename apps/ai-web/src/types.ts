@@ -30,6 +30,7 @@ export type Task = {
     plan?: TaskPlan | null
     result?: string | null
     error?: string | null
+    selectedRules: string[] | null
 }
 
 export type ValidationResult = {
