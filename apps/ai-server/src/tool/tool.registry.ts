@@ -6,6 +6,7 @@ import { createGitDiffTool } from "./git-diff.tool.js"
 import { createWriteFileTool } from "./write-file.tool.js"
 import { createRunCommandTool } from "./run-command.tool.js"
 import { createInstallDependencyTool } from "./install-dependency.tool.js"
+import { createReadProjectRuleTool } from "./read-project-rule.tool.js"
 
 export function createTools(
     workspace: Workspace,
@@ -18,6 +19,7 @@ export function createTools(
         createGitDiffTool(workspace),
         createRunCommandTool(workspace),
         createInstallDependencyTool(workspace),
+        createReadProjectRuleTool()
     ]
 }
 
