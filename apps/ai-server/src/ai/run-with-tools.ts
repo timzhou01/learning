@@ -3,6 +3,8 @@ import type { ResponseCreateParamsNonStreaming } from "openai/resources/response
 import { openai } from "./openai.js"
 import { createTools } from "../tool/tool.registry.js"
 import type { Workspace } from "../workspace/workspace.types.js"
+import { getProjectRules } from "../rules/project-rules.js"
+import { getProjectContext } from "../context/project-context.js"
 
 export type AgentStepResult = {
     stepNumber: number
@@ -23,6 +25,8 @@ export type AgentModelStep = {
 
 export type AgentRunResult = {
     result: string
+
+    responseId: string
 
     steps: AgentStepResult[]
 
@@ -67,8 +71,10 @@ async function callModel(
 
 export async function runAgent(
     input: string,
+    context: string,
     workspace: Workspace,
     maxSteps = 10,
+    previousResponseId?: string,
 ): Promise<AgentRunResult> {
     const startedAt = Date.now()
 
@@ -89,16 +95,51 @@ export async function runAgent(
         totalTokens += modelStep.totalTokens
     }
 
+
+
+    const agentInput = `
+# Project Context
+
+${context}
+
+# Task
+
+${input}
+`
+
     const firstCall = await callModel(
-        {
-            model: "gpt-5.6",
+        previousResponseId
+            ? {
+                model: "gpt-5.6",
 
-            input,
+                previous_response_id:
+                    previousResponseId,
 
-            tools: tools.map(
-                (tool) => tool.definition,
-            ),
-        },
+                input: agentInput,
+
+                tools: tools.map(
+                    (tool) =>
+                        tool.definition,
+                ),
+            }
+            : {
+                model: "gpt-5.6",
+
+                input: `
+# Project Context
+
+${context ?? ""}
+
+# Task
+
+${agentInput}
+`,
+
+                tools: tools.map(
+                    (tool) =>
+                        tool.definition,
+                ),
+            },
         1,
     )
 
@@ -123,6 +164,9 @@ export async function runAgent(
                 result: response.output_text,
 
                 steps,
+
+                responseId:
+                    response.id,
 
                 modelSteps,
 
@@ -243,7 +287,7 @@ export async function runAgent(
                     // 这里把失败结果也告诉模型，
                     // 让模型决定是否换一种方式继续
                     output:
-                        `Tool execution failed: ${message}`,
+                        `Tool execution failed: ${message} `,
                 })
             }
         }
@@ -275,6 +319,6 @@ export async function runAgent(
     }
 
     throw new Error(
-        `Agent exceeded max steps: ${maxSteps}`,
+        `Agent exceeded max steps: ${maxSteps} `,
     )
 }

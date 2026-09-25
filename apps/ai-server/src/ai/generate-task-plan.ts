@@ -1,14 +1,19 @@
+import { getProjectContext, type ProjectContext } from "../context/project-context.js"
 import { TaskPlanSchema, type TaskPlan } from "../modules/task/domain/task-plan.schema.js"
 import { openai } from "./openai.js"
 import { zodTextFormat } from "openai/helpers/zod"
 
 export async function generateTaskPlan(
     input: string,
+    context: ProjectContext,
 ): Promise<TaskPlan> {
-    const response = await openai.responses.parse({
-        model: "gpt-5.6",
 
-        instructions: `
+
+    const response =
+        await openai.responses.parse({
+            model: "gpt-5.6",
+
+            instructions: `
 You are a software engineering task planner.
 
 Your job is ONLY to create an execution plan.
@@ -21,6 +26,12 @@ Do not ask the user to provide repository contents.
 Assume that the execution agent will have repository tools available later,
 including file listing, code search, and file reading.
 
+Follow the project context below when creating the plan.
+
+# Project Context
+
+${context.content}
+
 Create a concise plan describing what the execution agent should do.
 
 Risks should describe real implementation risks,
@@ -28,15 +39,16 @@ such as unclear architecture, hidden dependencies, test failures,
 or unintended side effects.
 `,
 
-        input,
+            input,
 
-        text: {
-            format: zodTextFormat(
-                TaskPlanSchema,
-                "task_plan",
-            ),
-        },
-    })
+            text: {
+                format:
+                    zodTextFormat(
+                        TaskPlanSchema,
+                        "task_plan",
+                    ),
+            },
+        })
 
     if (!response.output_parsed) {
         throw new Error(

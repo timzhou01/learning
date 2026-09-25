@@ -25,6 +25,8 @@ export const projects = pgTable(
             .notNull()
             .default("main"),
 
+
+
         createdAt: timestamp(
             "created_at",
             {

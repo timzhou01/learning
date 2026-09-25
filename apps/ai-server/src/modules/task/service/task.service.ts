@@ -13,6 +13,7 @@ import type { TaskReviewRepository } from "../repository/task-review.repository.
 import { WorkspaceValidator, type ValidationResult } from "../../../workspace/workspace-validator.js"
 import type { Workspace } from "../../../workspace/workspace.types.js"
 import type { ProjectRepository } from "../../project/repository/project.repository.js"
+import { getProjectContext } from "../../../context/project-context.js"
 
 type ValidationAttempt = {
     attempt: number
@@ -28,6 +29,7 @@ type AgentAttempt = {
 
 async function runAgentWithValidation(
     input: string,
+    context: string,
     workspacePath: string,
     workspace: Workspace,
     maxRepairAttempts = 2,
@@ -44,6 +46,7 @@ async function runAgentWithValidation(
     let agentResult =
         await runAgent(
             input,
+            context,
             workspace,
         )
 
@@ -119,6 +122,7 @@ async function runAgentWithValidation(
         agentResult =
             await runAgent(
                 repairInput,
+                context,
                 workspace,
             )
 
@@ -700,19 +704,44 @@ export class TaskService {
         input: string,
     ): Promise<void> {
         try {
-            const plan = await generateTaskPlan(input)
+            const context =
+                await getProjectContext(
+                    input,
+                )
 
-            await this.transition(id, "ready", {
-                plan,
-                error: null,
-            })
+            const plan =
+                await generateTaskPlan(
+                    input,
+                    context,
+                )
+
+            await this.transition(
+                id,
+                "ready",
+                {
+                    plan,
+                    error: null,
+                },
+            )
+
+            await this.taskRepository.update(
+                id,
+                {
+                    selectedRules:
+                        context.selectedRules,
+                },
+            )
         } catch (error) {
-            await this.transition(id, "failed", {
-                error:
-                    error instanceof Error
-                        ? error.message
-                        : "Unknown error",
-            })
+            await this.transition(
+                id,
+                "failed",
+                {
+                    error:
+                        error instanceof Error
+                            ? error.message
+                            : "Unknown error",
+                },
+            )
         }
     }
 

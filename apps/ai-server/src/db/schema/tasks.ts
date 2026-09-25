@@ -59,6 +59,10 @@ export const tasks = pgTable(
 
         result: text("result"),
 
+        selectedRules: jsonb(
+            "selected_rules",
+        ).$type<string[]>(),
+
         createdAt: timestamp(
             "created_at",
             {
