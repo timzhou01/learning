@@ -484,8 +484,11 @@ function App() {
               ) {
                 stopPolling()
               }
-            } catch {
-              stopPolling()
+            } catch (error) {
+              console.error(
+                "[Task Polling] failed",
+                error,
+              )
             }
           },
           1000,

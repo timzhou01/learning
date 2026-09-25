@@ -9,6 +9,10 @@ export interface Workspace {
         args: string[],
     ): Promise<CommandResult>
     getGitDiffFromBase(): Promise<string>
+    installDependency(
+        packageName: string,
+        dev: boolean,
+    ): Promise<CommandResult>
 }
 
 export type CommandResult = {

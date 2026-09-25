@@ -6,7 +6,7 @@ import { generateTaskPlan } from "../../../ai/generate-task-plan.js"
 import type { TaskPlan } from "../domain/task-plan.schema.js"
 import { AppError } from "../../../common/app.error.js"
 import { LocalWorkspace } from "../../../workspace/local-workspace.js"
-import { runAgent, type AgentRunResult } from "../../../ai/run-with-tools.js"
+import { runAgent, type AgentRunResult, type AgentStepResult } from "../../../ai/run-with-tools.js"
 import type { AgentRunRepository } from "../repository/agent-run.repository.js"
 import { WorkspaceManager } from "../../../workspace/workspace-manager.js"
 import type { TaskReviewRepository } from "../repository/task-review.repository.js"
@@ -28,11 +28,22 @@ type AgentAttempt = {
     result: AgentRunResult
 }
 
+type AgentStepHandler =
+    (data: {
+        attempt: number
+        phase:
+        | "initial"
+        | "repair"
+        step: AgentStepResult
+    }) =>
+        Promise<void> | void
+
 async function runAgentWithValidation(
     input: string,
     context: string,
     workspacePath: string,
     workspace: Workspace,
+    onStep?: AgentStepHandler,
     maxRepairAttempts = 2,
 ) {
     const validator =
@@ -49,6 +60,18 @@ async function runAgentWithValidation(
             input,
             context,
             workspace,
+            30,
+            undefined,
+            async (
+                step,
+            ) => {
+                await onStep?.({
+                    attempt: 1,
+                    phase:
+                        "initial",
+                    step,
+                })
+            },
         )
 
     let previousResponseId =
@@ -72,22 +95,18 @@ async function runAgentWithValidation(
                 workspace,
             )
 
-        validationAttempts.push(
-            {
-                attempt:
-                    attempt +
-                    1,
+        validationAttempts.push({
+            attempt:
+                attempt + 1,
 
-                type:
-                    attempt ===
-                        0
-                        ? "initial"
-                        : "repair",
+            type:
+                attempt === 0
+                    ? "initial"
+                    : "repair",
 
-                results:
-                    validationResults,
-            },
-        )
+            results:
+                validationResults,
+        })
 
         const failed =
             validationResults.filter(
@@ -98,8 +117,7 @@ async function runAgentWithValidation(
             )
 
         if (
-            failed.length ===
-            0
+            failed.length === 0
         ) {
             return {
                 agentResult,
@@ -147,13 +165,29 @@ async function runAgentWithValidation(
                 "\n",
             )
 
+        const repairAttempt =
+            attempt + 2
+
         agentResult =
             await runAgent(
                 repairInput,
                 undefined,
                 workspace,
-                10,
+                30,
                 previousResponseId,
+                async (
+                    step,
+                ) => {
+                    await onStep?.({
+                        attempt:
+                            repairAttempt,
+
+                        phase:
+                            "repair",
+
+                        step,
+                    })
+                },
             )
 
         previousResponseId =
@@ -161,8 +195,7 @@ async function runAgentWithValidation(
 
         agentAttempts.push({
             attempt:
-                attempt +
-                2,
+                repairAttempt,
 
             phase:
                 "repair",
@@ -303,55 +336,49 @@ export class TaskService {
                     context.content,
                     workspacePath,
                     workspace,
+
+                    async ({
+                        attempt,
+                        phase,
+                        step,
+                    }) => {
+                        await this.agentRunRepository.createStep(
+                            {
+                                runId:
+                                    run.id,
+
+                                attempt,
+
+                                phase,
+
+                                stepNumber:
+                                    step.stepNumber,
+
+                                toolName:
+                                    step.toolName,
+
+                                arguments:
+                                    step.arguments,
+
+                                output:
+                                    step.output ??
+                                    null,
+
+                                error:
+                                    step.error ??
+                                    null,
+
+                                durationMs:
+                                    step.durationMs,
+                            },
+                        )
+                    },
                 )
 
             await workspaceManager.commitChanges(
                 workspacePath,
                 `agent task ${id}`,
             )
-
-            for (
-                const attempt of
-                agentAttempts
-            ) {
-                for (
-                    const step of
-                    attempt.result.steps
-                ) {
-                    await this.agentRunRepository.createStep(
-                        {
-                            runId:
-                                run.id,
-
-                            attempt:
-                                attempt.attempt,
-
-                            phase:
-                                attempt.phase,
-
-                            stepNumber:
-                                step.stepNumber,
-
-                            toolName:
-                                step.toolName,
-
-                            arguments:
-                                step.arguments,
-
-                            output:
-                                step.output ??
-                                null,
-
-                            error:
-                                step.error ??
-                                null,
-
-                            durationMs:
-                                step.durationMs,
-                        },
-                    )
-                }
-            }
 
             const totalDurationMs =
                 agentAttempts.reduce(
@@ -450,9 +477,12 @@ export class TaskService {
                         null,
                 },
             )
-        } catch (
-        error
-        ) {
+        } catch (error) {
+            console.error(
+                "[TaskService.runTask] failed",
+                error,
+            )
+
             const message =
                 error instanceof Error
                     ? error.message

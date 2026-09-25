@@ -10,17 +10,11 @@ export class AgentRunService {
         return this.agentRunRepository.findRunsByTaskId(taskId)
     }
 
-    async getStepsByRunId(runId: string) {
-        const steps =
-            await this.agentRunRepository.findStepsByRunId(runId)
-
-        if (steps.length === 0) {
-            throw new AppError(
-                `Agent run steps not found: ${runId}`,
-                404,
-            )
-        }
-
-        return steps
+    async getStepsByRunId(
+        runId: string,
+    ) {
+        return this.agentRunRepository.findStepsByRunId(
+            runId,
+        )
     }
 }

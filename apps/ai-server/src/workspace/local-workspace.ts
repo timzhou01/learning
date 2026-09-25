@@ -214,4 +214,40 @@ export class LocalWorkspace implements Workspace {
 
         return stdout
     }
+
+    async installDependency(
+        packageName: string,
+        dev: boolean,
+    ): Promise<CommandResult> {
+        const validPackageName =
+            /^(?:@[\w.-]+\/)?[\w.-]+(?:@[\w.*^~<>=|-]+)?$/
+
+        if (
+            !validPackageName.test(
+                packageName,
+            )
+        ) {
+            throw new Error(
+                `Invalid package name: ${packageName}`,
+            )
+        }
+
+        const args = [
+            "add",
+            packageName,
+        ]
+
+        if (dev) {
+            args.push(
+                "-D",
+            )
+        }
+
+        return this.commandRunner.run(
+            this.root,
+            "pnpm",
+            args,
+            true,
+        )
+    }
 }

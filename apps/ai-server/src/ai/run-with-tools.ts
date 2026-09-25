@@ -39,6 +39,12 @@ export type AgentRunResult = {
     durationMs: number
 }
 
+export type AgentStepCallback =
+    (
+        step: AgentStepResult,
+    ) =>
+        Promise<void> | void
+
 async function callModel(
     params: ResponseCreateParamsNonStreaming,
     stepNumber: number,
@@ -71,8 +77,9 @@ export async function runAgent(
     input: string,
     context: string | undefined,
     workspace: Workspace,
-    maxSteps = 10,
+    maxSteps = 30,
     previousResponseId?: string,
+    onStep?: AgentStepCallback,
 ): Promise<AgentRunResult> {
     const startedAt =
         Date.now()
@@ -106,6 +113,41 @@ export async function runAgent(
             modelStep.totalTokens
     }
 
+    const recordStep =
+        async (
+            step:
+                AgentStepResult,
+        ) => {
+            steps.push(
+                step,
+            )
+
+            console.log(
+                "[Agent Step]",
+                {
+                    stepNumber:
+                        step.stepNumber,
+
+                    tool:
+                        step.toolName,
+
+                    durationMs:
+                        step.durationMs,
+
+                    error:
+                        step.error,
+                },
+            )
+
+            if (
+                onStep
+            ) {
+                await onStep(
+                    step,
+                )
+            }
+        }
+
     const firstInput =
         previousResponseId
             ? input
@@ -118,6 +160,18 @@ ${context ?? ""}
 
 ${input}
 `
+
+    console.log(
+        "[Agent] model call",
+        {
+            mode:
+                previousResponseId
+                    ? "continue"
+                    : "initial",
+
+            maxSteps,
+        },
+    )
 
     const firstCall =
         await callModel(
@@ -176,6 +230,18 @@ ${input}
             toolCalls.length ===
             0
         ) {
+            console.log(
+                "[Agent] completed",
+                {
+                    steps:
+                        steps.length,
+
+                    durationMs:
+                        Date.now() -
+                        startedAt,
+                },
+            )
+
             return {
                 result:
                     response.output_text,
@@ -237,7 +303,7 @@ ${input}
                 const message =
                     `Tool not found: ${toolCall.name}`
 
-                steps.push({
+                await recordStep({
                     stepNumber,
 
                     toolName:
@@ -281,6 +347,12 @@ ${input}
                         toolCall.arguments,
                     )
 
+                console.log(
+                    "[Agent Tool]",
+                    toolCall.name,
+                    args,
+                )
+
                 const toolResult =
                     await tool.execute(
                         args as any,
@@ -294,7 +366,7 @@ ${input}
                             toolResult,
                         )
 
-                steps.push({
+                await recordStep({
                     stepNumber,
 
                     toolName:
@@ -330,7 +402,7 @@ ${input}
                         ? error.message
                         : "Tool execution failed"
 
-                steps.push({
+                await recordStep({
                     stepNumber,
 
                     toolName:
@@ -362,6 +434,17 @@ ${input}
                 )
             }
         }
+
+        console.log(
+            "[Agent] continue model",
+            {
+                responseId:
+                    response.id,
+
+                completedSteps:
+                    steps.length,
+            },
+        )
 
         const nextCall =
             await callModel(
