@@ -1,4 +1,4 @@
-import { getProjectContext, type ProjectContext } from "../context/project-context.js"
+import { type ProjectContext } from "../context/project-context.js"
 import { TaskPlanSchema, type TaskPlan } from "../modules/task/domain/task-plan.schema.js"
 import { openai } from "./openai.js"
 import { zodTextFormat } from "openai/helpers/zod"
@@ -7,13 +7,13 @@ export async function generateTaskPlan(
     input: string,
     context: ProjectContext,
 ): Promise<TaskPlan> {
-
-
     const response =
-        await openai.responses.parse({
-            model: "gpt-5.6",
+        await openai.responses.parse(
+            {
+                model:
+                    "gpt-5.6",
 
-            instructions: `
+                instructions: `
 You are a software engineering task planner.
 
 Your job is ONLY to create an execution plan.
@@ -39,18 +39,21 @@ such as unclear architecture, hidden dependencies, test failures,
 or unintended side effects.
 `,
 
-            input,
+                input,
 
-            text: {
-                format:
-                    zodTextFormat(
-                        TaskPlanSchema,
-                        "task_plan",
-                    ),
+                text: {
+                    format:
+                        zodTextFormat(
+                            TaskPlanSchema,
+                            "task_plan",
+                        ),
+                },
             },
-        })
+        )
 
-    if (!response.output_parsed) {
+    if (
+        !response.output_parsed
+    ) {
         throw new Error(
             "Failed to generate task plan",
         )

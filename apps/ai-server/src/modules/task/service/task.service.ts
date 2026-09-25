@@ -13,7 +13,8 @@ import type { TaskReviewRepository } from "../repository/task-review.repository.
 import { WorkspaceValidator, type ValidationResult } from "../../../workspace/workspace-validator.js"
 import type { Workspace } from "../../../workspace/workspace.types.js"
 import type { ProjectRepository } from "../../project/repository/project.repository.js"
-import { getProjectContext } from "../../../context/project-context.js"
+import { getProjectContext, getProjectContextFromRules } from "../../../context/project-context.js"
+import type { ProjectRuleName } from "../../../rules/project-rules.js"
 
 type ValidationAttempt = {
     attempt: number
@@ -50,6 +51,9 @@ async function runAgentWithValidation(
             workspace,
         )
 
+    let previousResponseId =
+        agentResult.responseId
+
     agentAttempts.push({
         attempt: 1,
         phase: "initial",
@@ -58,7 +62,8 @@ async function runAgentWithValidation(
 
     for (
         let attempt = 0;
-        attempt <= maxRepairAttempts;
+        attempt <=
+        maxRepairAttempts;
         attempt++
     ) {
         const validationResults =
@@ -67,21 +72,35 @@ async function runAgentWithValidation(
                 workspace,
             )
 
-        validationAttempts.push({
-            attempt: attempt + 1,
-            type:
-                attempt === 0
-                    ? "initial"
-                    : "repair",
-            results: validationResults,
-        })
+        validationAttempts.push(
+            {
+                attempt:
+                    attempt +
+                    1,
+
+                type:
+                    attempt ===
+                        0
+                        ? "initial"
+                        : "repair",
+
+                results:
+                    validationResults,
+            },
+        )
 
         const failed =
             validationResults.filter(
-                (result) => !result.passed,
+                (
+                    result,
+                ) =>
+                    !result.passed,
             )
 
-        if (failed.length === 0) {
+        if (
+            failed.length ===
+            0
+        ) {
             return {
                 agentResult,
                 agentAttempts,
@@ -99,37 +118,57 @@ async function runAgentWithValidation(
                     "Validation failed after repair attempts.",
 
                     ...failed.map(
-                        (item) =>
+                        (
+                            item,
+                        ) =>
                             `${item.name}:\n${item.output}`,
                     ),
-                ].join("\n\n"),
+                ].join(
+                    "\n\n",
+                ),
             )
         }
 
-        const repairInput = [
-            "The implementation failed system validation.",
-            "Inspect the errors below and fix the code.",
-            "Do not undo unrelated changes.",
-            "After fixing, finish the task normally.",
-            "",
+        const repairInput =
+            [
+                "The implementation failed system validation.",
+                "Inspect the errors below and fix the code.",
+                "Do not undo unrelated changes.",
+                "After fixing, finish the task normally.",
+                "",
 
-            ...failed.map(
-                (item) =>
-                    `${item.name} failed:\n${item.output}`,
-            ),
-        ].join("\n")
+                ...failed.map(
+                    (
+                        item,
+                    ) =>
+                        `${item.name} failed:\n${item.output}`,
+                ),
+            ].join(
+                "\n",
+            )
 
         agentResult =
             await runAgent(
                 repairInput,
-                context,
+                undefined,
                 workspace,
+                10,
+                previousResponseId,
             )
 
+        previousResponseId =
+            agentResult.responseId
+
         agentAttempts.push({
-            attempt: attempt + 2,
-            phase: "repair",
-            result: agentResult,
+            attempt:
+                attempt +
+                2,
+
+            phase:
+                "repair",
+
+            result:
+                agentResult,
         })
     }
 
@@ -147,7 +186,9 @@ export class TaskService {
             ProjectRepository,
     ) { }
 
-    async runTask(id: string) {
+    async runTask(
+        id: string,
+    ) {
         const task =
             await this.taskRepository.findById(
                 id,
@@ -157,6 +198,15 @@ export class TaskService {
             throw new AppError(
                 `Task not found: ${id}`,
                 404,
+            )
+        }
+
+        if (
+            !task.selectedRules
+        ) {
+            throw new AppError(
+                "Task project rules are missing",
+                500,
             )
         }
 
@@ -175,8 +225,11 @@ export class TaskService {
         await this.taskRepository.update(
             id,
             {
-                status: "running",
-                error: null,
+                status:
+                    "running",
+
+                error:
+                    null,
             },
         )
 
@@ -201,14 +254,22 @@ export class TaskService {
             project.repositoryPath
 
         const workspaceBase =
-            process.env.AGENT_WORKSPACE_BASE
+            process.env
+                .AGENT_WORKSPACE_BASE
 
-        if (!workspaceBase) {
+        if (
+            !workspaceBase
+        ) {
             throw new AppError(
                 "Agent workspace configuration is missing",
                 500,
             )
         }
+
+        const context =
+            await getProjectContextFromRules(
+                task.selectedRules as ProjectRuleName[],
+            )
 
         const workspaceManager =
             new WorkspaceManager(
@@ -239,18 +300,19 @@ export class TaskService {
             } =
                 await runAgentWithValidation(
                     task.input,
+                    context.content,
                     workspacePath,
                     workspace,
                 )
 
-            const commitHash =
-                await workspaceManager.commitChanges(
-                    workspacePath,
-                    `agent task ${id}`,
-                )
+            await workspaceManager.commitChanges(
+                workspacePath,
+                `agent task ${id}`,
+            )
 
             for (
-                const attempt of agentAttempts
+                const attempt of
+                agentAttempts
             ) {
                 for (
                     const step of
@@ -298,7 +360,8 @@ export class TaskService {
                         attempt,
                     ) =>
                         total +
-                        attempt.result
+                        attempt
+                            .result
                             .durationMs,
                     0,
                 )
@@ -310,7 +373,9 @@ export class TaskService {
                         attempt,
                     ) =>
                         total +
-                        attempt.result.usage
+                        attempt
+                            .result
+                            .usage
                             .inputTokens,
                     0,
                 )
@@ -322,7 +387,9 @@ export class TaskService {
                         attempt,
                     ) =>
                         total +
-                        attempt.result.usage
+                        attempt
+                            .result
+                            .usage
                             .outputTokens,
                     0,
                 )
@@ -334,7 +401,9 @@ export class TaskService {
                         attempt,
                     ) =>
                         total +
-                        attempt.result.usage
+                        attempt
+                            .result
+                            .usage
                             .totalTokens,
                     0,
                 )
@@ -381,7 +450,9 @@ export class TaskService {
                         null,
                 },
             )
-        } catch (error) {
+        } catch (
+        error
+        ) {
             const message =
                 error instanceof Error
                     ? error.message
@@ -675,28 +746,49 @@ export class TaskService {
         nextStatus: TaskStatus,
         data?: {
             plan?: TaskPlan | null
-            error?: string | null
+
+            selectedRules?:
+            string[] | null
+
+            error?:
+            string | null
         },
     ) {
-        const task = await this.taskRepository.findById(id)
+        const task =
+            await this.taskRepository.findById(
+                id,
+            )
 
         if (!task) {
-            throw new Error(`Task not found: ${id}`)
+            throw new Error(
+                `Task not found: ${id}`,
+            )
         }
 
-        const currentStatus = task.status as TaskStatus
+        const currentStatus =
+            task.status as TaskStatus
 
-        if (!canTransition(currentStatus, nextStatus)) {
+        if (
+            !canTransition(
+                currentStatus,
+                nextStatus,
+            )
+        ) {
             throw new AppError(
                 `Invalid task status transition: ${currentStatus} -> ${nextStatus}`,
                 409,
             )
         }
 
-        return this.taskRepository.update(id, {
-            status: nextStatus,
-            ...data,
-        })
+        return this.taskRepository.update(
+            id,
+            {
+                status:
+                    nextStatus,
+
+                ...data,
+            },
+        )
     }
 
     private async generatePlan(
@@ -720,24 +812,24 @@ export class TaskService {
                 "ready",
                 {
                     plan,
-                    error: null,
-                },
-            )
 
-            await this.taskRepository.update(
-                id,
-                {
                     selectedRules:
                         context.selectedRules,
+
+                    error:
+                        null,
                 },
             )
-        } catch (error) {
+        } catch (
+        error
+        ) {
             await this.transition(
                 id,
                 "failed",
                 {
                     error:
-                        error instanceof Error
+                        error instanceof
+                            Error
                             ? error.message
                             : "Unknown error",
                 },

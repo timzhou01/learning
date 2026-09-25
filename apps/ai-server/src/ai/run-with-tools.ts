@@ -3,8 +3,6 @@ import type { ResponseCreateParamsNonStreaming } from "openai/resources/response
 import { openai } from "./openai.js"
 import { createTools } from "../tool/tool.registry.js"
 import type { Workspace } from "../workspace/workspace.types.js"
-import { getProjectRules } from "../rules/project-rules.js"
-import { getProjectContext } from "../context/project-context.js"
 
 export type AgentStepResult = {
     stepNumber: number
@@ -71,102 +69,121 @@ async function callModel(
 
 export async function runAgent(
     input: string,
-    context: string,
+    context: string | undefined,
     workspace: Workspace,
     maxSteps = 10,
     previousResponseId?: string,
 ): Promise<AgentRunResult> {
-    const startedAt = Date.now()
+    const startedAt =
+        Date.now()
 
-    const tools = createTools(workspace)
+    const tools =
+        createTools(
+            workspace,
+        )
 
-    const steps: AgentStepResult[] = []
-    const modelSteps: AgentModelStep[] = []
+    const steps:
+        AgentStepResult[] = []
+
+    const modelSteps:
+        AgentModelStep[] = []
 
     let inputTokens = 0
     let outputTokens = 0
     let totalTokens = 0
 
     const addUsage = (
-        modelStep: AgentModelStep,
+        modelStep:
+            AgentModelStep,
     ) => {
-        inputTokens += modelStep.inputTokens
-        outputTokens += modelStep.outputTokens
-        totalTokens += modelStep.totalTokens
+        inputTokens +=
+            modelStep.inputTokens
+
+        outputTokens +=
+            modelStep.outputTokens
+
+        totalTokens +=
+            modelStep.totalTokens
     }
 
-
-
-    const agentInput = `
-# Project Context
-
-${context}
-
-# Task
-
-${input}
-`
-
-    const firstCall = await callModel(
+    const firstInput =
         previousResponseId
-            ? {
-                model: "gpt-5.6",
-
-                previous_response_id:
-                    previousResponseId,
-
-                input: agentInput,
-
-                tools: tools.map(
-                    (tool) =>
-                        tool.definition,
-                ),
-            }
-            : {
-                model: "gpt-5.6",
-
-                input: `
+            ? input
+            : `
 # Project Context
 
 ${context ?? ""}
 
 # Task
 
-${agentInput}
-`,
+${input}
+`
 
-                tools: tools.map(
-                    (tool) =>
-                        tool.definition,
-                ),
+    const firstCall =
+        await callModel(
+            {
+                model:
+                    "gpt-5.6",
+
+                ...(previousResponseId
+                    ? {
+                        previous_response_id:
+                            previousResponseId,
+                    }
+                    : {}),
+
+                input:
+                    firstInput,
+
+                tools:
+                    tools.map(
+                        (
+                            tool,
+                        ) =>
+                            tool.definition,
+                    ),
             },
-        1,
-    )
-
-    let response = firstCall.response
-
-    modelSteps.push(firstCall.modelStep)
-    addUsage(firstCall.modelStep)
-
-    // Agent Loop
-    for (
-        let agentStep = 0;
-        agentStep < maxSteps;
-        agentStep++
-    ) {
-        const toolCalls = response.output.filter(
-            (item) =>
-                item.type === "function_call",
+            1,
         )
 
-        if (toolCalls.length === 0) {
-            return {
-                result: response.output_text,
+    let response =
+        firstCall.response
 
-                steps,
+    modelSteps.push(
+        firstCall.modelStep,
+    )
+
+    addUsage(
+        firstCall.modelStep,
+    )
+
+    for (
+        let agentStep = 0;
+        agentStep <
+        maxSteps;
+        agentStep++
+    ) {
+        const toolCalls =
+            response.output.filter(
+                (
+                    item,
+                ) =>
+                    item.type ===
+                    "function_call",
+            )
+
+        if (
+            toolCalls.length ===
+            0
+        ) {
+            return {
+                result:
+                    response.output_text,
 
                 responseId:
                     response.id,
+
+                steps,
 
                 modelSteps,
 
@@ -177,7 +194,8 @@ ${agentInput}
                 },
 
                 durationMs:
-                    Date.now() - startedAt,
+                    Date.now() -
+                    startedAt,
             }
         }
 
@@ -185,44 +203,68 @@ ${agentInput}
 
         for (
             let toolIndex = 0;
-            toolIndex < toolCalls.length;
+            toolIndex <
+            toolCalls.length;
             toolIndex++
         ) {
-            const toolCall = toolCalls[toolIndex]
+            const toolCall =
+                toolCalls[
+                toolIndex
+                ]
 
-            if (!toolCall) {
+            if (
+                !toolCall
+            ) {
                 continue
             }
 
-            const tool = tools.find(
-                (item) =>
-                    item.definition.name ===
-                    toolCall.name,
-            )
+            const tool =
+                tools.find(
+                    (
+                        item,
+                    ) =>
+                        item
+                            .definition
+                            .name ===
+                        toolCall.name,
+                )
 
             const stepNumber =
-                steps.length + 1
+                steps.length +
+                1
 
-            // Tool 不存在
             if (!tool) {
                 const message =
                     `Tool not found: ${toolCall.name}`
 
                 steps.push({
                     stepNumber,
-                    toolName: toolCall.name,
+
+                    toolName:
+                        toolCall.name,
+
                     arguments:
                         toolCall.arguments,
-                    error: message,
-                    durationMs: 0,
+
+                    error:
+                        message,
+
+                    durationMs:
+                        0,
                 })
 
-                toolOutputs.push({
-                    type:
-                        "function_call_output" as const,
-                    call_id: toolCall.call_id,
-                    output: message,
-                })
+                toolOutputs.push(
+                    {
+                        type:
+                            "function_call_output" as const,
+
+                        call_id:
+                            toolCall.call_id,
+
+                        output:
+                            message,
+                    },
+                )
 
                 continue
             }
@@ -230,95 +272,134 @@ ${agentInput}
             const toolStartedAt =
                 Date.now()
 
-            let args: unknown
+            let args:
+                unknown
 
             try {
-                args = JSON.parse(
-                    toolCall.arguments,
-                )
+                args =
+                    JSON.parse(
+                        toolCall.arguments,
+                    )
 
                 const toolResult =
-                    await tool.execute(args as any)
+                    await tool.execute(
+                        args as any,
+                    )
 
                 const output =
-                    typeof toolResult === "string"
+                    typeof toolResult ===
+                        "string"
                         ? toolResult
-                        : JSON.stringify(toolResult)
+                        : JSON.stringify(
+                            toolResult,
+                        )
 
                 steps.push({
                     stepNumber,
-                    toolName: toolCall.name,
-                    arguments: args,
+
+                    toolName:
+                        toolCall.name,
+
+                    arguments:
+                        args,
+
                     output,
+
                     durationMs:
                         Date.now() -
                         toolStartedAt,
                 })
 
-                toolOutputs.push({
-                    type:
-                        "function_call_output" as const,
-                    call_id: toolCall.call_id,
-                    output,
-                })
-            } catch (error) {
+                toolOutputs.push(
+                    {
+                        type:
+                            "function_call_output" as const,
+
+                        call_id:
+                            toolCall.call_id,
+
+                        output,
+                    },
+                )
+            } catch (
+            error
+            ) {
                 const message =
-                    error instanceof Error
+                    error instanceof
+                        Error
                         ? error.message
                         : "Tool execution failed"
 
                 steps.push({
                     stepNumber,
-                    toolName: toolCall.name,
+
+                    toolName:
+                        toolCall.name,
+
                     arguments:
                         args ??
                         toolCall.arguments,
-                    error: message,
+
+                    error:
+                        message,
+
                     durationMs:
                         Date.now() -
                         toolStartedAt,
                 })
 
-                toolOutputs.push({
-                    type:
-                        "function_call_output" as const,
-                    call_id: toolCall.call_id,
+                toolOutputs.push(
+                    {
+                        type:
+                            "function_call_output" as const,
 
-                    // 这里把失败结果也告诉模型，
-                    // 让模型决定是否换一种方式继续
-                    output:
-                        `Tool execution failed: ${message} `,
-                })
+                        call_id:
+                            toolCall.call_id,
+
+                        output:
+                            `Tool execution failed: ${message}`,
+                    },
+                )
             }
         }
 
-        // 把所有 Tool Result 回传模型
-        const nextCall = await callModel(
-            {
-                model: "gpt-5.6",
+        const nextCall =
+            await callModel(
+                {
+                    model:
+                        "gpt-5.6",
 
-                previous_response_id:
-                    response.id,
+                    previous_response_id:
+                        response.id,
 
-                input: toolOutputs,
+                    input:
+                        toolOutputs,
 
-                tools: tools.map(
-                    (tool) => tool.definition,
-                ),
-            },
-            modelSteps.length + 1,
-        )
+                    tools:
+                        tools.map(
+                            (
+                                tool,
+                            ) =>
+                                tool.definition,
+                        ),
+                },
+                modelSteps.length +
+                1,
+            )
 
-        response = nextCall.response
+        response =
+            nextCall.response
 
         modelSteps.push(
             nextCall.modelStep,
         )
 
-        addUsage(nextCall.modelStep)
+        addUsage(
+            nextCall.modelStep,
+        )
     }
 
     throw new Error(
-        `Agent exceeded max steps: ${maxSteps} `,
+        `Agent exceeded max steps: ${maxSteps}`,
     )
 }
