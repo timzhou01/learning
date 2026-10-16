@@ -1,0 +1,17 @@
+
+import express from "express"
+
+const app = express()
+
+app.use(express.json())
+
+app.get("/health", (_req, res) => {
+    res.json({
+        status: "ok",
+        service: "meterflow-api",
+    })
+})
+
+app.listen(3001, () => {
+    console.log("MeterFlow API running on port 3001")
+})
