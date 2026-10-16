@@ -9,6 +9,8 @@ import {
 
 import { Client } from "pg"
 import { PostgreSqlContainer } from "@testcontainers/postgresql"
+import { drizzle } from "drizzle-orm/node-postgres"
+import { migrate } from "drizzle-orm/node-postgres/migrator"
 
 import type { StartedPostgreSqlContainer } from "@testcontainers/postgresql"
 
@@ -25,6 +27,11 @@ describe("PostgreSQL Integration", () => {
         })
 
         await client.connect()
+        const db = drizzle(client)
+
+        await migrate(db, {
+            migrationsFolder: "./drizzle",
+        })
     })
 
     afterAll(async () => {
@@ -38,5 +45,20 @@ describe("PostgreSQL Integration", () => {
         )
 
         expect(result.rows[0].value).toBe(1)
+    })
+
+    it("should create workflow tables", async () => {
+        const result = await client.query(`
+    SELECT table_name
+    FROM information_schema.tables
+    WHERE table_schema = 'public'
+      AND table_name IN ('workflows', 'workflow_versions')
+    ORDER BY table_name
+  `)
+
+        expect(result.rows.map(row => row.table_name)).toEqual([
+            "workflow_versions",
+            "workflows",
+        ])
     })
 })
