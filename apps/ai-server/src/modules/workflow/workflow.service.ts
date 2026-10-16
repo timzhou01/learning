@@ -1,19 +1,21 @@
 
-import { eq, sql } from "drizzle-orm"
-
-import { db } from "../../db/client.js"
+import { eq } from "drizzle-orm"
+import { drizzle } from "drizzle-orm/node-postgres"
 
 import {
     workflows,
     workflowVersions,
 } from "../../db/schema/workflows.js"
 
+type WorkflowDb = ReturnType<typeof drizzle>
+
 export async function publishWorkflow(
+    db: WorkflowDb,
     workflowId: string,
     definition: unknown,
 ) {
     return db.transaction(async (tx) => {
-        // 1. 查询并锁定工作流
+        // 锁定工作流记录
         const [workflow] = await tx
             .select()
             .from(workflows)
@@ -24,10 +26,9 @@ export async function publishWorkflow(
             throw new Error("Workflow not found")
         }
 
-        // 2. 计算下一个版本
         const nextVersion = workflow.latestVersion + 1
 
-        // 3. 创建不可变版本记录
+        // 创建新版本
         const [published] = await tx
             .insert(workflowVersions)
             .values({
@@ -37,12 +38,10 @@ export async function publishWorkflow(
             })
             .returning()
 
-        // 4. 更新工作流最新版本
+        // 更新最新版本号
         await tx
             .update(workflows)
-            .set({
-                latestVersion: nextVersion,
-            })
+            .set({ latestVersion: nextVersion })
             .where(eq(workflows.id, workflowId))
 
         return published
