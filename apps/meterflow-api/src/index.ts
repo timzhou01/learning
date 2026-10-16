@@ -1,6 +1,6 @@
 
 import express from "express"
-import pinoHttp from "pino-http"
+import { pinoHttp } from "pino-http"
 import { randomUUID } from "node:crypto"
 
 import { config } from "./config.js"
