@@ -305,9 +305,15 @@ importers:
 
   apps/meterflow-api:
     dependencies:
+      dotenv:
+        specifier: ^18.0.3
+        version: 18.0.3
       express:
         specifier: ^5.2.1
         version: 5.2.1
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
     devDependencies:
       '@types/express':
         specifier: ^5.0.6

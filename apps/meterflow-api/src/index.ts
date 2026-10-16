@@ -1,5 +1,6 @@
 
 import express from "express"
+import { config } from "./config.js"
 
 const app = express()
 
@@ -12,6 +13,8 @@ app.get("/health", (_req, res) => {
     })
 })
 
-app.listen(3001, () => {
-    console.log("MeterFlow API running on port 3001")
+app.listen(config.PORT, () => {
+    console.log(
+        `MeterFlow API running on port ${config.PORT}`,
+    )
 })
