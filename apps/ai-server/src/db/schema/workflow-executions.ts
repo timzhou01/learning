@@ -8,6 +8,7 @@ import {
     timestamp,
     index,
 } from "drizzle-orm/pg-core"
+import { uniqueIndex } from "drizzle-orm/pg-core"
 
 import { workflowVersions } from "./workflows.js"
 
@@ -26,6 +27,7 @@ export const workflowExecutions = pgTable(
     "workflow_executions",
     {
         id: uuid("id").primaryKey().defaultRandom(),
+        idempotencyKey: text("idempotency_key").notNull(),
 
         workflowVersionId: uuid("workflow_version_id")
             .notNull()
@@ -56,5 +58,7 @@ export const workflowExecutions = pgTable(
     (table) => [
         index("workflow_executions_version_idx")
             .on(table.workflowVersionId),
+        uniqueIndex("workflow_executions_idempotency_key_unique")
+            .on(table.idempotencyKey),
     ],
 )
