@@ -75,4 +75,45 @@ describe("Usage Events Integration", () => {
         expect(records).toHaveLength(1)
         expect(records[0]?.tokens).toBe(1500)
     })
+
+
+    it("should handle 100 concurrent duplicate events", async () => {
+        const testDb = drizzle(pool)
+        const app = createApp(testDb)
+
+        const eventId = "concurrent-event-001"
+
+        const payload = {
+            eventId,
+            customerId: "customer-001",
+            tokens: 1500,
+            occurredAt: "2026-10-17T10:00:00Z",
+        }
+
+        // 同时发起 100 个 HTTP 请求
+        const responses = await Promise.all(
+            Array.from({ length: 100 }, () =>
+                request(app)
+                    .post("/usage-events")
+                    .send(payload),
+            ),
+        )
+
+        // 统计 HTTP 返回结果
+        const created = responses.filter(r => r.status === 201)
+        const conflicts = responses.filter(r => r.status === 409)
+
+        expect(created).toHaveLength(1)
+        expect(conflicts).toHaveLength(99)
+
+        // 验证数据库最终状态
+        const records = await testDb
+            .select()
+            .from(usageEvents)
+            .where(eq(usageEvents.eventId, eventId))
+
+        expect(records).toHaveLength(1)
+        expect(records[0]?.tokens).toBe(1500)
+    }, 60_000)
+
 })
