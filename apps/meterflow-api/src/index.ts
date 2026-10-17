@@ -5,6 +5,8 @@ import { randomUUID } from "node:crypto"
 
 import { config } from "./config.js"
 import { logger } from "./logger.js"
+import { AppError } from "./app-error.js"
+import { errorMiddleware } from "./error.middleware.js"
 
 const app = express()
 
@@ -26,6 +28,16 @@ app.get("/health", (_req, res) => {
         service: "meterflow-api",
     })
 })
+
+app.use((_req, _res, next) => {
+    next(new AppError(
+        404,
+        "RESOURCE_NOT_FOUND",
+        "Resource not found",
+    ))
+})
+
+app.use(errorMiddleware)
 
 app.listen(config.PORT, () => {
     logger.info(
