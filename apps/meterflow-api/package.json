@@ -20,6 +20,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@testcontainers/postgresql": "^12.2.1",
     "@types/express": "^5.0.6",
     "@types/node": "^26.6.5",
     "@types/pg": "^8.23.1",

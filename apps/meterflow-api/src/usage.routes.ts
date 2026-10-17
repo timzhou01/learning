@@ -1,11 +1,10 @@
 
 import { Router } from "express"
 import { z } from "zod"
-import { db } from "./db.js"
+
+import type { db as appDb } from "./db.js"
 import { usageEvents } from "./db/schema/usage-events.js"
 import { AppError } from "./app-error.js"
-
-export const usageRouter = Router()
 
 const createUsageSchema = z.object({
     eventId: z.string().min(1),
@@ -16,40 +15,50 @@ const createUsageSchema = z.object({
     }),
 })
 
-usageRouter.post("/", async (req, res) => {
-    const parsed = createUsageSchema.safeParse(req.body)
+export function createUsageRouter(database: typeof appDb) {
+    const router = Router()
 
-    if (!parsed.success) {
-        throw new AppError(
-            400,
-            "INVALID_REQUEST",
-            "Invalid usage event",
-        )
-    }
+    router.post("/", async (req, res) => {
+        const parsed = createUsageSchema.safeParse(req.body)
 
-    const { eventId, customerId, tokens, occurredAt } =
-        parsed.data
+        if (!parsed.success) {
+            throw new AppError(
+                400,
+                "INVALID_REQUEST",
+                "Invalid usage event",
+            )
+        }
 
-    const [event] = await db
-        .insert(usageEvents)
-        .values({
+        const {
             eventId,
             customerId,
             tokens,
-            occurredAt: new Date(occurredAt),
-        })
-        .onConflictDoNothing({
-            target: usageEvents.eventId,
-        })
-        .returning()
+            occurredAt,
+        } = parsed.data
 
-    if (!event) {
-        throw new AppError(
-            409,
-            "DUPLICATE_EVENT",
-            "Usage event already exists",
-        )
-    }
+        const [event] = await database
+            .insert(usageEvents)
+            .values({
+                eventId,
+                customerId,
+                tokens,
+                occurredAt: new Date(occurredAt),
+            })
+            .onConflictDoNothing({
+                target: usageEvents.eventId,
+            })
+            .returning()
 
-    res.status(201).json(event)
-})
+        if (!event) {
+            throw new AppError(
+                409,
+                "DUPLICATE_EVENT",
+                "Usage event already exists",
+            )
+        }
+
+        res.status(201).json(event)
+    })
+
+    return router
+}
