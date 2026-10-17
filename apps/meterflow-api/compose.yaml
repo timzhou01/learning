@@ -1,0 +1,27 @@
+
+name: meterflow
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+
+    ports:
+      - "127.0.0.1:5434:5432"
+
+    environment:
+      POSTGRES_USER: meterflow
+      POSTGRES_PASSWORD: meterflow_dev
+      POSTGRES_DB: meterflow
+
+    volumes:
+      - meterflow_pgdata_v2:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U meterflow -d meterflow"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  meterflow_pgdata_v2:
