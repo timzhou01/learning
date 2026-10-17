@@ -5,6 +5,7 @@ import { z } from "zod"
 import type { db as appDb } from "./db.js"
 import { usageEvents } from "./db/schema/usage-events.js"
 import { AppError } from "./app-error.js"
+import { and, eq, gte, lt, sql } from "drizzle-orm"
 
 const createUsageSchema = z.object({
     eventId: z.string().min(1),
@@ -58,6 +59,51 @@ export function createUsageRouter(database: typeof appDb) {
         }
 
         res.status(201).json(event)
+    })
+
+    const summarySchema = z.object({
+        customerId: z.string().min(1),
+        from: z.iso.datetime({ offset: true }),
+        to: z.iso.datetime({ offset: true }),
+    }).refine(
+        data => new Date(data.from) < new Date(data.to),
+        { message: "from must be before to" },
+    )
+
+    router.get("/summary", async (req, res) => {
+        const parsed = summarySchema.safeParse(req.query)
+
+        if (!parsed.success) {
+            throw new AppError(
+                400,
+                "INVALID_REQUEST",
+                "Invalid query parameters",
+            )
+        }
+
+        const { customerId, from, to } = parsed.data
+
+        const [result] = await database
+            .select({
+                totalTokens: sql<string>`
+        COALESCE(SUM(${usageEvents.tokens}), 0)
+      `,
+                eventCount: sql<string>`
+        COUNT(*)
+      `,
+            })
+            .from(usageEvents)
+            .where(and(
+                eq(usageEvents.customerId, customerId),
+                gte(usageEvents.occurredAt, new Date(from)),
+                lt(usageEvents.occurredAt, new Date(to)),
+            ))
+
+        res.json({
+            customerId,
+            totalTokens: result?.totalTokens ?? "0",
+            eventCount: Number(result?.eventCount ?? 0),
+        })
     })
 
     return router
