@@ -1,47 +1,19 @@
-
-import express from "express"
-import { pinoHttp } from "pino-http"
-import { randomUUID } from "node:crypto"
-
+import { app } from "./app.js"
 import { config } from "./config.js"
 import { logger } from "./logger.js"
-import { AppError } from "./app-error.js"
-import { errorMiddleware } from "./error.middleware.js"
 
-const app = express()
-
-app.use(pinoHttp({
-    logger,
-
-    genReqId(req, res) {
-        const requestId = randomUUID()
-        res.setHeader("X-Request-ID", requestId)
-        return requestId
-    },
-}))
-
-app.use(express.json())
-
-app.get("/health", (_req, res) => {
-    res.json({
-        status: "ok",
-        service: "meterflow-api",
-    })
-})
-
-app.use((_req, _res, next) => {
-    next(new AppError(
-        404,
-        "RESOURCE_NOT_FOUND",
-        "Resource not found",
-    ))
-})
-
-app.use(errorMiddleware)
-
-app.listen(config.PORT, () => {
+const server = app.listen(config.PORT, () => {
     logger.info(
         { port: config.PORT },
         "MeterFlow API started",
     )
+})
+
+process.on("SIGINT", () => {
+    console.log("\nShutting down...")
+
+    server.close(() => {
+        console.log("Server closed")
+        process.exit(0)
+    })
 })
