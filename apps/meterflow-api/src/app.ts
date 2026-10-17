@@ -3,10 +3,10 @@ import express from "express"
 import { pinoHttp } from "pino-http"
 import { randomUUID } from "node:crypto"
 
-import { config } from "./config.js"
 import { logger } from "./logger.js"
 import { AppError } from "./app-error.js"
 import { errorMiddleware } from "./error.middleware.js"
+import { usageRouter } from "./usage.routes.js"
 
 export const app = express()
 
@@ -28,6 +28,8 @@ app.get("/health", (_req, res) => {
         service: "meterflow-api",
     })
 })
+
+app.use("/usage-events", usageRouter)
 
 app.use((_req, _res, next) => {
     next(new AppError(
