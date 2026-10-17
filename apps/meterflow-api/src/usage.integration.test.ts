@@ -116,4 +116,74 @@ describe("Usage Events Integration", () => {
         expect(records[0]?.tokens).toBe(1500)
     }, 60_000)
 
+    it("should aggregate usage with correct time boundaries", async () => {
+        const testDb = drizzle(pool)
+        const app = createApp(testDb)
+
+        const customerId = "summary-test-customer"
+
+        // 准备 4 条数据
+        await testDb.insert(usageEvents).values([
+            {
+                eventId: "summary-001",
+                customerId,
+                tokens: 100,
+                occurredAt: new Date("2026-10-01T00:00:00Z"),
+            },
+            {
+                eventId: "summary-002",
+                customerId,
+                tokens: 200,
+                occurredAt: new Date("2026-10-15T00:00:00Z"),
+            },
+            {
+                eventId: "summary-003",
+                customerId,
+                tokens: 300,
+                occurredAt: new Date("2026-11-01T00:00:00Z"),
+            },
+            {
+                eventId: "summary-004",
+                customerId: "another-customer",
+                tokens: 500,
+                occurredAt: new Date("2026-10-15T00:00:00Z"),
+            },
+        ])
+
+        const response = await request(app)
+            .get("/usage-events/summary")
+            .query({
+                customerId,
+                from: "2026-10-01T00:00:00Z",
+                to: "2026-11-01T00:00:00Z",
+            })
+            .expect(200)
+
+        expect(response.body).toEqual({
+            customerId,
+            totalTokens: "300",
+            eventCount: 2,
+        })
+    })
+
+    it("should return zero for customer without usage", async () => {
+        const testDb = drizzle(pool)
+        const app = createApp(testDb)
+
+        const response = await request(app)
+            .get("/usage-events/summary")
+            .query({
+                customerId: "customer-without-usage",
+                from: "2026-10-01T00:00:00Z",
+                to: "2026-11-01T00:00:00Z",
+            })
+            .expect(200)
+
+        expect(response.body).toEqual({
+            customerId: "customer-without-usage",
+            totalTokens: "0",
+            eventCount: 0,
+        })
+    })
+
 })
