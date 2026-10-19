@@ -1,9 +1,10 @@
+
 import { and, eq, lte, asc, sql } from "drizzle-orm"
 import { db } from "../../db.js"
 import { jobs } from "../../db/schema/jobs.js"
 
-export async function claimJob() {
-    return db.transaction(async (tx) => {
+export async function claimJob(database: typeof db = db) {
+    return database.transaction(async (tx) => {
         const [job] = await tx
             .select()
             .from(jobs)
@@ -11,7 +12,11 @@ export async function claimJob() {
                 eq(jobs.status, "pending"),
                 lte(jobs.runAt, new Date()),
             ))
-            .orderBy(asc(jobs.runAt), asc(jobs.createdAt), asc(jobs.id))
+            .orderBy(
+                asc(jobs.runAt),
+                asc(jobs.createdAt),
+                asc(jobs.id),
+            )
             .limit(1)
             .for("update", { skipLocked: true })
 
@@ -31,10 +36,11 @@ export async function claimJob() {
 }
 
 export async function finishJob(
+    database: typeof db,
     id: string,
     status: "completed" | "failed",
 ) {
-    await db
+    await database
         .update(jobs)
         .set({ status })
         .where(and(

@@ -9,12 +9,13 @@ export async function generateInvoice(
     customerId: string,
     from: Date,
     to: Date,
+    database: typeof db = db,
 ) {
     if (from >= to) {
         throw new Error("Invalid billing period")
     }
 
-    return db.transaction(async (tx) => {
+    return database.transaction(async (tx) => {
         const [usage] = await tx
             .select({
                 total: sql<string>`
@@ -51,8 +52,8 @@ export async function generateInvoice(
 
 }
 
-export async function finalizeInvoice(id: string) {
-    const [invoice] = await db
+export async function finalizeInvoice(id: string, database: typeof db = db,) {
+    const [invoice] = await database
         .update(invoices)
         .set({ status: "finalized" })
         .where(and(
