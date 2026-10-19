@@ -8,6 +8,7 @@ import { logger } from "./logger.js"
 import { AppError } from "./app-error.js"
 import { errorMiddleware } from "./error.middleware.js"
 import { createUsageRouter } from "./usage.routes.js"
+import { billingRouter } from "./modules/billing/billing.routes.js"
 
 export function createApp(database: typeof db = db) {
     const app = express()
@@ -35,6 +36,8 @@ export function createApp(database: typeof db = db) {
         "/usage-events",
         createUsageRouter(database),
     )
+
+    app.use("/billing", billingRouter)
 
     // 404：必须放在所有业务路由之后
     app.use((_req, _res, next) => {
