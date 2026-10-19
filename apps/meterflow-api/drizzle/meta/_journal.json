@@ -15,6 +15,13 @@
       "when": 1792388537337,
       "tag": "0001_high_rage",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792389842218,
+      "tag": "0002_lively_the_professor",
+      "breakpoints": true
     }
   ]
 }
