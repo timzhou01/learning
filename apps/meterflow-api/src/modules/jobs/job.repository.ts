@@ -29,3 +29,16 @@ export async function claimJob() {
         return claimed
     })
 }
+
+export async function finishJob(
+    id: string,
+    status: "completed" | "failed",
+) {
+    await db
+        .update(jobs)
+        .set({ status })
+        .where(and(
+            eq(jobs.id, id),
+            eq(jobs.status, "processing"),
+        ))
+}
