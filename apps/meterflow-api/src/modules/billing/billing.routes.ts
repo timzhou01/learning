@@ -3,7 +3,7 @@ import { Router } from "express"
 import { z } from "zod"
 
 import { AppError } from "../../app-error.js"
-import { generateInvoice } from "./billing.service.js"
+import { finalizeInvoice, generateInvoice } from "./billing.service.js"
 
 export const billingRouter = Router()
 
@@ -43,6 +43,24 @@ billingRouter.post("/invoices", async (req, res) => {
     }
 
     res.status(201).json({
+        ...invoice,
+        totalTokens: invoice.totalTokens.toString(),
+        amountCents: invoice.amountCents.toString(),
+    })
+})
+
+billingRouter.post("/invoices/:id/finalize", async (req, res) => {
+    const { id } = req.params
+
+    const parsed = z.uuid().safeParse(id)
+
+    if (!parsed.success) {
+        throw new AppError(400, "INVALID_ID", "Invalid invoice ID")
+    }
+
+    const invoice = await finalizeInvoice(parsed.data)
+
+    res.json({
         ...invoice,
         totalTokens: invoice.totalTokens.toString(),
         amountCents: invoice.amountCents.toString(),

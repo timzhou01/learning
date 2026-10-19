@@ -3,6 +3,7 @@ import { and, eq, gte, lt, sql } from "drizzle-orm"
 import { db } from "../../db.js"
 import { usageEvents } from "../../db/schema/usage-events.js"
 import { invoices } from "../../db/schema/invoices.js"
+import { AppError } from "../../app-error.js"
 
 export async function generateInvoice(
     customerId: string,
@@ -46,4 +47,27 @@ export async function generateInvoice(
 
         return invoice ?? null
     })
+
+
+}
+
+export async function finalizeInvoice(id: string) {
+    const [invoice] = await db
+        .update(invoices)
+        .set({ status: "finalized" })
+        .where(and(
+            eq(invoices.id, id),
+            eq(invoices.status, "draft"),
+        ))
+        .returning()
+
+    if (!invoice) {
+        throw new AppError(
+            409,
+            "INVOICE_NOT_DRAFT",
+            "Invoice does not exist or is already finalized",
+        )
+    }
+
+    return invoice
 }
