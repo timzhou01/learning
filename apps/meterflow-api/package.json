@@ -8,7 +8,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "worker:dev": "tsx watch src/worker.ts"
   },
   "dependencies": {
     "dotenv": "^18.0.3",
