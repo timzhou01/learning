@@ -7,6 +7,9 @@ import { AppError } from "../../error/app-error.js"
 import { createChatCompletion } from "./gateway.service.js"
 import { recordGatewayUsage } from "./gateway.usage.js"
 import { authenticateApiKey } from "./gateway.auth.js"
+import { apiKeyAuth } from "./gateway.auth.middleware.js"
+import { rateLimit } from "../../middlewares/rate-limit.js"
+import { redis } from "../../redis/redis.js"
 
 const schema = z.object({
     model: z.string().min(1),
@@ -19,39 +22,43 @@ const schema = z.object({
 export function createGatewayRouter(database: typeof db) {
     const router = Router()
 
-    router.post("/chat/completions", async (req, res) => {
-        const parsed = schema.safeParse(req.body)
+    router.post("/chat/completions", apiKeyAuth(database),
+        rateLimit(redis, {
+            limit: 60,
+            windowSeconds: 60,
+            key: (_req, res) => res.locals.customerId,
+        }), async (req, res) => {
+            const parsed = schema.safeParse(req.body)
 
-        if (!parsed.success) {
-            throw new AppError(
-                400,
-                "INVALID_REQUEST",
-                "Invalid chat completion request",
+            if (!parsed.success) {
+                throw new AppError(
+                    400,
+                    "INVALID_REQUEST",
+                    "Invalid chat completion request",
+                )
+            }
+
+            const customerId = await authenticateApiKey(
+                database,
+                req.headers.authorization,
             )
-        }
 
-        // 目前先模拟客户，下一步接入 API Key 鉴权
-        const customerId = await authenticateApiKey(
-            database,
-            req.headers.authorization,
-        )
-
-        const result = await createChatCompletion(
-            parsed.data.model,
-            parsed.data.messages,
-        )
+            const result = await createChatCompletion(
+                parsed.data.model,
+                parsed.data.messages,
+            )
 
 
 
-        await recordGatewayUsage(
-            database,
-            result.id,
-            customerId,
-            result.usage.total_tokens,
-        )
+            await recordGatewayUsage(
+                database,
+                result.id,
+                customerId,
+                result.usage.total_tokens,
+            )
 
-        res.json(result)
-    })
+            res.json(result)
+        })
 
     return router
 }

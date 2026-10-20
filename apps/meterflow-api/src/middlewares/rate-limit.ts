@@ -1,5 +1,5 @@
 
-import type { RequestHandler, Request } from "express"
+import type { RequestHandler, Request, Response } from "express"
 import type { Redis } from "ioredis"
 
 import { AppError } from "../error/app-error.js"
@@ -9,7 +9,7 @@ export function rateLimit(
     options: {
         limit: number
         windowSeconds: number
-        key: (req: Request) => string
+        key: (req: Request, res: Response) => string
     },
 ): RequestHandler {
     return async (req, _res, next) => {
@@ -18,7 +18,7 @@ export function rateLimit(
                 Date.now() / (options.windowSeconds * 1000),
             )
 
-            const key = `rate-limit:${options.key(req)}:${window}`
+            const key = `rate-limit:${options.key(req, _res)}:${window}`
 
             const count = await redis.incr(key)
 
