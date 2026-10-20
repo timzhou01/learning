@@ -1,6 +1,7 @@
 
 import {
     and, or, eq, lt, lte, asc, sql,
+    gt,
 } from "drizzle-orm"
 
 import { db } from "../../db.js"
@@ -61,6 +62,27 @@ export async function finishJob(
             eq(jobs.id, id),
             eq(jobs.status, "processing"),
             eq(jobs.attempts, attempts),
+        ))
+        .returning({ id: jobs.id })
+
+    return !!updated
+}
+
+export async function renewJobLease(
+    database: typeof db,
+    id: string,
+    attempts: number,
+): Promise<boolean> {
+    const [updated] = await database
+        .update(jobs)
+        .set({
+            lockedUntil: sql`NOW() + INTERVAL '60 seconds'`,
+        })
+        .where(and(
+            eq(jobs.id, id),
+            eq(jobs.status, "processing"),
+            eq(jobs.attempts, attempts),
+            gt(jobs.lockedUntil, sql`NOW()`),
         ))
         .returning({ id: jobs.id })
 

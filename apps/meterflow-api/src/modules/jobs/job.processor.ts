@@ -2,8 +2,9 @@
 import { z } from "zod"
 import { db } from "../../db.js"
 import { logger } from "../../logger.js"
-import { claimJob, finishJob } from "./job.repository.js"
+import { claimJob, finishJob, renewJobLease } from "./job.repository.js"
 import { generateInvoice } from "../billing/billing.service.js"
+import { runWithHeartbeat } from "./job.heartbeat.js"
 
 const invoicePayload = z.object({
     customerId: z.string().min(1),
@@ -26,10 +27,13 @@ export function createJobProcessor(
 
             const payload = invoicePayload.parse(job.payload)
 
-            await generate(
-                payload.customerId,
-                new Date(payload.from),
-                new Date(payload.to),
+            await runWithHeartbeat(
+                () => generate(
+                    payload.customerId,
+                    new Date(payload.from),
+                    new Date(payload.to),
+                ),
+                () => renewJobLease(database, job.id, job.attempts),
             )
 
             await finishJob(database, job.id, job.attempts, "completed")
