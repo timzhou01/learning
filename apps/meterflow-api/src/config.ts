@@ -22,6 +22,8 @@ const envSchema = z.object({
         "warn",
         "error",
     ]).default("info"),
+    AI_BASE_URL: z.url(),
+    AI_API_KEY: z.string().min(1),
 })
 
 export const config = envSchema.parse(process.env)
