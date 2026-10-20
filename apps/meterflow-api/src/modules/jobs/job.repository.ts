@@ -4,7 +4,7 @@ import {
     gt,
 } from "drizzle-orm"
 
-import { db } from "../../db.js"
+import { db } from "../../db/db.js"
 import { jobs } from "../../db/schema/jobs.js"
 
 export async function claimJob(database: typeof db = db) {

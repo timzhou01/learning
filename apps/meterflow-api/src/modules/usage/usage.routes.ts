@@ -2,9 +2,9 @@
 import { Router } from "express"
 import { z } from "zod"
 
-import type { db as appDb } from "./db.js"
-import { usageEvents } from "./db/schema/usage-events.js"
-import { AppError } from "./error/app-error.js"
+import type { db as appDb } from "../../db/db.js"
+import { usageEvents } from "../../db/schema/usage-events.js"
+import { AppError } from "../../error/app-error.js"
 import { and, eq, gte, lt, sql } from "drizzle-orm"
 
 const createUsageSchema = z.object({

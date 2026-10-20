@@ -1,5 +1,5 @@
 
-import { db } from "../../db.js"
+import { db } from "../../db/db.js"
 import { usageEvents } from "../../db/schema/usage-events.js"
 
 export async function recordGatewayUsage(

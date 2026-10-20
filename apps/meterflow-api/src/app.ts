@@ -3,13 +3,13 @@ import express from "express"
 import { pinoHttp } from "pino-http"
 import { randomUUID } from "node:crypto"
 
-import { db } from "./db.js"
-import { logger } from "./logger.js"
+import { db } from "./db/db.js"
 import { AppError } from "./error/app-error.js"
-import { createUsageRouter } from "./usage.routes.js"
 import { billingRouter } from "./modules/billing/billing.routes.js"
 import { createGatewayRouter } from "./modules/gateway/gateway.routes.js"
 import { errorMiddleware } from "./error/error.middleware.js"
+import { createUsageRouter } from "./modules/usage/usage.routes.js"
+import { logger } from "./logger/logger.js"
 
 export function createApp(database: typeof db = db) {
     const app = express()

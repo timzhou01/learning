@@ -1,6 +1,6 @@
 
 import { z } from "zod"
-import { db } from "../../db.js"
+import { db } from "../../db/db.js"
 import { logger } from "../../logger.js"
 import { claimJob, finishJob, renewJobLease } from "./job.repository.js"
 import { generateInvoice } from "../billing/billing.service.js"

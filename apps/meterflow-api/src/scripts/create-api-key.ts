@@ -1,7 +1,7 @@
 
 import { randomBytes, createHash } from "node:crypto"
 
-import { db, pool } from "../db.js"
+import { db, pool } from "../db/db.js"
 import { apiKeys } from "../db/schema/api-keys.js"
 
 async function main() {

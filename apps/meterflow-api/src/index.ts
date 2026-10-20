@@ -1,8 +1,8 @@
 
 import { app } from "./app.js"
 import { config } from "./config.js"
-import { logger } from "./logger.js"
-import { pool } from "./db.js"
+import { pool } from "./db/db.js"
+import { logger } from "./logger/logger.js"
 
 async function main() {
     await pool.query("SELECT 1")

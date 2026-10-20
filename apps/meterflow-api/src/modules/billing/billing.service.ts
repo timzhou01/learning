@@ -1,6 +1,6 @@
 
 import { and, eq, gte, lt, sql } from "drizzle-orm"
-import { db } from "../../db.js"
+import { db } from "../../db/db.js"
 import { usageEvents } from "../../db/schema/usage-events.js"
 import { invoices } from "../../db/schema/invoices.js"
 import { AppError } from "../../error/app-error.js"

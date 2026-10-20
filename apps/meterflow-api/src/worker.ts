@@ -1,7 +1,7 @@
 
 import { setTimeout as sleep } from "node:timers/promises"
 
-import { db, pool } from "./db.js"
+import { db, pool } from "./db/db.js"
 import { logger } from "./logger.js"
 import { createJobProcessor } from "./modules/jobs/job.processor.js"
 

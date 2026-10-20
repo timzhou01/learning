@@ -2,7 +2,7 @@
 import { Router } from "express"
 import { z } from "zod"
 
-import { db } from "../../db.js"
+import { db } from "../../db/db.js"
 import { AppError } from "../../error/app-error.js"
 import { createChatCompletion } from "./gateway.service.js"
 import { recordGatewayUsage } from "./gateway.usage.js"

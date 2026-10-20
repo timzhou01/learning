@@ -2,7 +2,7 @@
 import { createHash } from "node:crypto"
 import { eq, and, isNull } from "drizzle-orm"
 
-import { db } from "../../db.js"
+import { db } from "../../db/db.js"
 import { apiKeys } from "../../db/schema/api-keys.js"
 import { AppError } from "../../error/app-error.js"
 

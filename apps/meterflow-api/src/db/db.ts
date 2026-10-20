@@ -2,7 +2,7 @@
 import { Pool } from "pg"
 import { drizzle } from "drizzle-orm/node-postgres"
 
-import { config } from "./config.js"
+import { config } from "../config.js"
 
 
 export const pool = new Pool({

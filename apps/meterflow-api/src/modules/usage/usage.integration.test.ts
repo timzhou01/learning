@@ -16,9 +16,9 @@ import {
     PostgreSqlContainer,
     type StartedPostgreSqlContainer,
 } from "@testcontainers/postgresql"
+import { createApp } from "../../app.js"
+import { usageEvents } from "../../db/schema/usage-events.js"
 
-import { createApp } from "./app.js"
-import { usageEvents } from "./db/schema/usage-events.js"
 
 describe("Usage Events Integration", () => {
     let container: StartedPostgreSqlContainer
