@@ -3,7 +3,7 @@ import { Router } from "express"
 import { z } from "zod"
 
 import { db } from "../../db.js"
-import { AppError } from "../../app-error.js"
+import { AppError } from "../../error/app-error.js"
 import { createChatCompletion } from "./gateway.service.js"
 import { recordGatewayUsage } from "./gateway.usage.js"
 import { authenticateApiKey } from "./gateway.auth.js"

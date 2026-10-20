@@ -5,11 +5,11 @@ import { randomUUID } from "node:crypto"
 
 import { db } from "./db.js"
 import { logger } from "./logger.js"
-import { AppError } from "./app-error.js"
-import { errorMiddleware } from "./error.middleware.js"
+import { AppError } from "./error/app-error.js"
 import { createUsageRouter } from "./usage.routes.js"
 import { billingRouter } from "./modules/billing/billing.routes.js"
 import { createGatewayRouter } from "./modules/gateway/gateway.routes.js"
+import { errorMiddleware } from "./error/error.middleware.js"
 
 export function createApp(database: typeof db = db) {
     const app = express()
@@ -50,7 +50,6 @@ export function createApp(database: typeof db = db) {
         ))
     })
 
-    // 全局错误处理：放在最后
     app.use(errorMiddleware)
 
     return app

@@ -4,7 +4,7 @@ import { eq, and, isNull } from "drizzle-orm"
 
 import { db } from "../../db.js"
 import { apiKeys } from "../../db/schema/api-keys.js"
-import { AppError } from "../../app-error.js"
+import { AppError } from "../../error/app-error.js"
 
 export async function authenticateApiKey(
     database: typeof db,

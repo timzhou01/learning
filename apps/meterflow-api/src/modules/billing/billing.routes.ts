@@ -2,7 +2,7 @@
 import { Router } from "express"
 import { z } from "zod"
 
-import { AppError } from "../../app-error.js"
+import { AppError } from "../../error/app-error.js"
 import { finalizeInvoice, generateInvoice } from "./billing.service.js"
 
 export const billingRouter = Router()
