@@ -1,5 +1,8 @@
 
-import { and, eq, lte, asc, sql } from "drizzle-orm"
+import {
+    and, or, eq, lt, lte, asc, sql,
+} from "drizzle-orm"
+
 import { db } from "../../db.js"
 import { jobs } from "../../db/schema/jobs.js"
 
@@ -9,8 +12,14 @@ export async function claimJob(database: typeof db = db) {
             .select()
             .from(jobs)
             .where(and(
-                eq(jobs.status, "pending"),
                 lte(jobs.runAt, new Date()),
+                or(
+                    eq(jobs.status, "pending"),
+                    and(
+                        eq(jobs.status, "processing"),
+                        lt(jobs.lockedUntil, new Date()),
+                    ),
+                ),
             ))
             .orderBy(
                 asc(jobs.runAt),
@@ -27,6 +36,7 @@ export async function claimJob(database: typeof db = db) {
             .set({
                 status: "processing",
                 attempts: sql`${jobs.attempts} + 1`,
+                lockedUntil: sql`NOW() + INTERVAL '60 seconds'`,
             })
             .where(eq(jobs.id, job.id))
             .returning()
@@ -38,13 +48,21 @@ export async function claimJob(database: typeof db = db) {
 export async function finishJob(
     database: typeof db,
     id: string,
+    attempts: number,
     status: "completed" | "failed",
 ) {
-    await database
+    const [updated] = await database
         .update(jobs)
-        .set({ status })
+        .set({
+            status,
+            lockedUntil: null,
+        })
         .where(and(
             eq(jobs.id, id),
             eq(jobs.status, "processing"),
+            eq(jobs.attempts, attempts),
         ))
+        .returning({ id: jobs.id })
+
+    return !!updated
 }

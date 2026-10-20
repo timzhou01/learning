@@ -22,6 +22,10 @@ export const jobs = pgTable("jobs", {
 
     attempts: integer("attempts").notNull().default(0),
 
+    lockedUntil: timestamp("locked_until", {
+        withTimezone: true,
+    }),
+
     runAt: timestamp("run_at", {
         withTimezone: true,
     }).notNull().defaultNow(),

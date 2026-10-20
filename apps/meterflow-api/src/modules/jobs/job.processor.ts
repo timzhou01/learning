@@ -32,11 +32,11 @@ export function createJobProcessor(
                 new Date(payload.to),
             )
 
-            await finishJob(database, job.id, "completed")
+            await finishJob(database, job.id, job.attempts, "completed")
             return true
         } catch (error) {
             logger.error({ err: error, jobId: job.id }, "Job failed")
-            await finishJob(database, job.id, "failed")
+            await finishJob(database, job.id, job.attempts, "failed")
             return false
         }
     }

@@ -22,6 +22,13 @@
       "when": 1792389842218,
       "tag": "0002_lively_the_professor",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792463827646,
+      "tag": "0003_charming_invaders",
+      "breakpoints": true
     }
   ]
 }
