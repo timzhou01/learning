@@ -1,10 +1,10 @@
 
 import { z } from "zod"
 import { db } from "../../db/db.js"
-import { logger } from "../../logger.js"
 import { claimJob, finishJob, renewJobLease } from "./job.repository.js"
 import { generateInvoice } from "../billing/billing.service.js"
 import { runWithHeartbeat } from "./job.heartbeat.js"
+import { logger } from "../../logger/logger.js"
 
 const invoicePayload = z.object({
     customerId: z.string().min(1),

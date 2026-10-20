@@ -24,6 +24,7 @@ const envSchema = z.object({
     ]).default("info"),
     AI_BASE_URL: z.url(),
     AI_API_KEY: z.string().min(1),
+    REDIS_URL: z.url(),
 })
 
 export const config = envSchema.parse(process.env)
