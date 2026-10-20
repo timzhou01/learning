@@ -38,10 +38,7 @@ export function createGatewayRouter(database: typeof db) {
                 )
             }
 
-            const customerId = await authenticateApiKey(
-                database,
-                req.headers.authorization,
-            )
+            const customerId = res.locals.customerId as string
 
             const result = await createChatCompletion(
                 parsed.data.model,
