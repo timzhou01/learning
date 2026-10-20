@@ -2,10 +2,10 @@
 import { Router } from "express"
 import { z } from "zod"
 
+import { db } from "../../db.js"
 import { AppError } from "../../app-error.js"
 import { createChatCompletion } from "./gateway.service.js"
-
-export const gatewayRouter = Router()
+import { recordGatewayUsage } from "./gateway.usage.js"
 
 const schema = z.object({
     model: z.string().min(1),
@@ -15,21 +15,37 @@ const schema = z.object({
     })).min(1),
 })
 
-gatewayRouter.post("/chat/completions", async (req, res) => {
-    const parsed = schema.safeParse(req.body)
+export function createGatewayRouter(database: typeof db) {
+    const router = Router()
 
-    if (!parsed.success) {
-        throw new AppError(
-            400,
-            "INVALID_REQUEST",
-            "Invalid chat completion request",
+    router.post("/chat/completions", async (req, res) => {
+        const parsed = schema.safeParse(req.body)
+
+        if (!parsed.success) {
+            throw new AppError(
+                400,
+                "INVALID_REQUEST",
+                "Invalid chat completion request",
+            )
+        }
+
+        const result = await createChatCompletion(
+            parsed.data.model,
+            parsed.data.messages,
         )
-    }
 
-    const result = await createChatCompletion(
-        parsed.data.model,
-        parsed.data.messages,
-    )
+        // 目前先模拟客户，下一步接入 API Key 鉴权
+        const customerId = "demo-customer"
 
-    res.json(result)
-})
+        await recordGatewayUsage(
+            database,
+            result.id,
+            customerId,
+            result.usage.total_tokens,
+        )
+
+        res.json(result)
+    })
+
+    return router
+}

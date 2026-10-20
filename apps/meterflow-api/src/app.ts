@@ -9,7 +9,7 @@ import { AppError } from "./app-error.js"
 import { errorMiddleware } from "./error.middleware.js"
 import { createUsageRouter } from "./usage.routes.js"
 import { billingRouter } from "./modules/billing/billing.routes.js"
-import { gatewayRouter } from "./modules/gateway/gateway.routes.js"
+import { createGatewayRouter } from "./modules/gateway/gateway.routes.js"
 
 export function createApp(database: typeof db = db) {
     const app = express()
@@ -39,7 +39,7 @@ export function createApp(database: typeof db = db) {
     )
 
     app.use("/billing", billingRouter)
-    app.use("/v1", gatewayRouter)
+    app.use("/v1", createGatewayRouter(database))
 
     // 404：必须放在所有业务路由之后
     app.use((_req, _res, next) => {

@@ -186,4 +186,30 @@ describe("Usage Events Integration", () => {
         })
     })
 
+    it("records token usage from a gateway request", async () => {
+        const testDb = drizzle(pool)
+        const app = createApp(testDb)
+
+        const response = await request(app)
+            .post("/v1/chat/completions")
+            .send({
+                model: "mock-model",
+                messages: [
+                    { role: "user", content: "Hello MeterFlow" },
+                ],
+            })
+            .expect(200)
+
+        const records = await testDb
+            .select()
+            .from(usageEvents)
+            .where(eq(usageEvents.eventId, response.body.id))
+
+        expect(records).toHaveLength(1)
+        expect(records[0]?.customerId).toBe("demo-customer")
+        expect(records[0]?.tokens).toBe(
+            response.body.usage.total_tokens,
+        )
+    })
+
 })
