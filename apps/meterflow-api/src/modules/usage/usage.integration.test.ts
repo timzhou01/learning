@@ -18,6 +18,8 @@ import {
 } from "@testcontainers/postgresql"
 import { createApp } from "../../app.js"
 import { usageEvents } from "../../db/schema/usage-events.js"
+import { createHash } from "node:crypto"
+import { apiKeys } from "../../db/schema/api-keys.js"
 
 
 describe("Usage Events Integration", () => {
@@ -186,27 +188,48 @@ describe("Usage Events Integration", () => {
         })
     })
 
+
+
     it("records token usage from a gateway request", async () => {
         const testDb = drizzle(pool)
         const app = createApp(testDb)
 
+        // 1. 在测试数据库中创建 API Key
+        const customerId = "gateway-test-customer"
+        const apiKey = `mf_${"a".repeat(64)}`
+
+        const keyHash = createHash("sha256")
+            .update(apiKey)
+            .digest("hex")
+
+        await testDb.insert(apiKeys).values({
+            customerId,
+            keyHash,
+        })
+
+        // 2. 携带 API Key 调用 Gateway
         const response = await request(app)
             .post("/v1/chat/completions")
+            .set("Authorization", `Bearer ${apiKey}`)
             .send({
                 model: "mock-model",
                 messages: [
-                    { role: "user", content: "Hello MeterFlow" },
+                    {
+                        role: "user",
+                        content: "Hello MeterFlow",
+                    },
                 ],
             })
             .expect(200)
 
+        // 3. 验证 Token 用量写入数据库
         const records = await testDb
             .select()
             .from(usageEvents)
             .where(eq(usageEvents.eventId, response.body.id))
 
         expect(records).toHaveLength(1)
-        expect(records[0]?.customerId).toBe("demo-customer")
+        expect(records[0]?.customerId).toBe(customerId)
         expect(records[0]?.tokens).toBe(
             response.body.usage.total_tokens,
         )
