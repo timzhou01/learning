@@ -21,6 +21,14 @@ import { usageEvents } from "../../db/schema/usage-events.js"
 import { createHash } from "node:crypto"
 import { apiKeys } from "../../db/schema/api-keys.js"
 
+import { vi } from "vitest"
+import type { Redis } from "ioredis"
+
+const mockRedis = {
+    incr: vi.fn().mockResolvedValue(1),
+    expire: vi.fn().mockResolvedValue(1),
+} as unknown as Redis
+
 
 describe("Usage Events Integration", () => {
     let container: StartedPostgreSqlContainer
@@ -192,7 +200,7 @@ describe("Usage Events Integration", () => {
 
     it("records token usage from a gateway request", async () => {
         const testDb = drizzle(pool)
-        const app = createApp(testDb)
+        const app = createApp(testDb, mockRedis)
 
         // 1. 在测试数据库中创建 API Key
         const customerId = "gateway-test-customer"

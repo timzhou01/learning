@@ -10,8 +10,10 @@ import { createGatewayRouter } from "./modules/gateway/gateway.routes.js"
 import { errorMiddleware } from "./error/error.middleware.js"
 import { createUsageRouter } from "./modules/usage/usage.routes.js"
 import { logger } from "./logger/logger.js"
+import { redis } from "./redis/redis.js"
+import type { Redis } from "ioredis"
 
-export function createApp(database: typeof db = db) {
+export function createApp(database: typeof db = db, redisClient: Redis = redis) {
     const app = express()
 
     app.use(pinoHttp({
@@ -39,7 +41,7 @@ export function createApp(database: typeof db = db) {
     )
 
     app.use("/billing", billingRouter)
-    app.use("/v1", createGatewayRouter(database))
+    app.use("/v1", createGatewayRouter(database, redisClient))
 
     // 404：必须放在所有业务路由之后
     app.use((_req, _res, next) => {
