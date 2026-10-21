@@ -4,6 +4,8 @@ import { kafka } from "../../kafka/kafka.js"
 import { db } from "../../db/db.js"
 import { usageEvents } from "../../db/schema/usage-events.js"
 import { usageEventSchema } from "./usage-event.js"
+import { ZodError } from "zod"
+import { logger } from "../../logger/logger.js"
 
 export function createUsageConsumer(
     database: typeof db,
@@ -12,11 +14,14 @@ export function createUsageConsumer(
 ) {
     const consumer = kafkaClient.consumer({ groupId })
 
+    const dlqProducer = kafkaClient.producer()
+
     return {
         consumer,
-
+        dlqProducer,
         async start() {
             await consumer.connect()
+            await dlqProducer.connect()
 
             await consumer.subscribe({
                 topic: "usage-events",
@@ -24,15 +29,49 @@ export function createUsageConsumer(
             })
 
             await consumer.run({
-                eachMessage: async ({ message }) => {
-                    if (!message.value) {
-                        throw new Error("Empty usage event")
+                eachMessage: async ({ topic, partition, message }) => {
+                    let event
+
+                    try {
+                        if (!message.value) {
+                            throw new SyntaxError("Empty usage event")
+                        }
+
+                        event = usageEventSchema.parse(
+                            JSON.parse(message.value.toString()),
+                        )
+                    } catch (error) {
+                        if (!(error instanceof SyntaxError) &&
+                            !(error instanceof ZodError)) {
+                            throw error
+                        }
+
+                        // 格式错误的消息进入 DLQ
+                        await dlqProducer.send({
+                            topic: "usage-events-dlq",
+                            messages: [{
+                                key: message.key?.toString(),
+                                value: JSON.stringify({
+                                    originalTopic: topic,
+                                    partition,
+                                    offset: message.offset,
+                                    payload: message.value?.toString() ?? null,
+                                    error: String(error),
+                                }),
+                            }],
+                            acks: -1,
+                        })
+
+                        logger.warn(
+                            { topic, partition, offset: message.offset },
+                            "Invalid usage event moved to DLQ",
+                        )
+
+                        return
                     }
 
-                    const event = usageEventSchema.parse(
-                        JSON.parse(message.value.toString()),
-                    )
-
+                    // 有效消息写入 PostgreSQL
+                    // 数据库异常继续抛出，由 KafkaJS 处理重试
                     await database
                         .insert(usageEvents)
                         .values({
@@ -44,7 +83,7 @@ export function createUsageConsumer(
                         .onConflictDoNothing({
                             target: usageEvents.eventId,
                         })
-                },
+                }
             })
         },
     }

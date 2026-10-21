@@ -15,6 +15,7 @@ async function shutdown() {
 
     try {
         await usageWorker.consumer.disconnect()
+        await usageWorker.dlqProducer.disconnect()
         await pool.end()
     } catch (error) {
         logger.error({ err: error }, "Shutdown failed")
