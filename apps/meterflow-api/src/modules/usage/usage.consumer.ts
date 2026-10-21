@@ -1,44 +1,54 @@
 
+import type { Kafka } from "kafkajs"
 import { kafka } from "../../kafka/kafka.js"
 import { db } from "../../db/db.js"
 import { usageEvents } from "../../db/schema/usage-events.js"
 import { usageEventSchema } from "./usage-event.js"
 
-export const usageConsumer = kafka.consumer({
-    groupId: "meterflow-usage-storage",
-})
+export function createUsageConsumer(
+    database: typeof db,
+    kafkaClient: Kafka,
+    groupId = "meterflow-usage-storage",
+) {
+    const consumer = kafkaClient.consumer({ groupId })
 
-export async function startUsageConsumer() {
-    await usageConsumer.connect()
+    return {
+        consumer,
 
-    await usageConsumer.subscribe({
-        topic: "usage-events",
-        fromBeginning: true,
-    })
+        async start() {
+            await consumer.connect()
 
-    await usageConsumer.run({
-        autoCommit: true,
+            await consumer.subscribe({
+                topic: "usage-events",
+                fromBeginning: true,
+            })
 
-        eachMessage: async ({ message }) => {
-            if (!message.value) {
-                throw new Error("Empty usage event")
-            }
+            await consumer.run({
+                eachMessage: async ({ message }) => {
+                    if (!message.value) {
+                        throw new Error("Empty usage event")
+                    }
 
-            const event = usageEventSchema.parse(
-                JSON.parse(message.value.toString()),
-            )
+                    const event = usageEventSchema.parse(
+                        JSON.parse(message.value.toString()),
+                    )
 
-            await db
-                .insert(usageEvents)
-                .values({
-                    eventId: event.eventId,
-                    customerId: event.customerId,
-                    tokens: event.tokens,
-                    occurredAt: new Date(event.occurredAt),
-                })
-                .onConflictDoNothing({
-                    target: usageEvents.eventId,
-                })
+                    await database
+                        .insert(usageEvents)
+                        .values({
+                            eventId: event.eventId,
+                            customerId: event.customerId,
+                            tokens: event.tokens,
+                            occurredAt: new Date(event.occurredAt),
+                        })
+                        .onConflictDoNothing({
+                            target: usageEvents.eventId,
+                        })
+                },
+            })
         },
-    })
+    }
 }
+
+// 正式环境使用默认依赖
+export const usageWorker = createUsageConsumer(db, kafka)

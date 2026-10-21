@@ -1,14 +1,11 @@
 
 import { pool } from "./db/db.js"
 import { logger } from "./logger/logger.js"
-import {
-    startUsageConsumer,
-    usageConsumer,
-} from "./modules/usage/usage.consumer.js"
+import { usageWorker } from "./modules/usage/usage.consumer.js"
 
 async function main() {
     await pool.query("SELECT 1")
-    await startUsageConsumer()
+    await usageWorker.start()
 
     logger.info("Usage Consumer started")
 }
@@ -17,7 +14,7 @@ async function shutdown() {
     logger.info("Stopping Usage Consumer")
 
     try {
-        await usageConsumer.disconnect()
+        await usageWorker.consumer.disconnect()
         await pool.end()
     } catch (error) {
         logger.error({ err: error }, "Shutdown failed")
