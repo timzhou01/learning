@@ -12,6 +12,10 @@ import { createUsageRouter } from "./modules/usage/usage.routes.js"
 import { logger } from "./logger/logger.js"
 import { redis } from "./redis/redis.js"
 import type { Redis } from "ioredis"
+import {
+    metricsMiddleware,
+    metricsHandler,
+} from "./monitoring/metrics.js"
 
 export function createApp(database: typeof db = db, redisClient: Redis = redis) {
     const app = express()
@@ -27,6 +31,10 @@ export function createApp(database: typeof db = db, redisClient: Redis = redis) 
     }))
 
     app.use(express.json())
+
+    app.use(metricsMiddleware)
+
+    app.get("/metrics", metricsHandler)
 
     app.get("/health", (_req, res) => {
         res.json({
