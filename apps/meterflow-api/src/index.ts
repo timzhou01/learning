@@ -3,11 +3,14 @@ import { app } from "./app.js"
 import { config } from "./config.js"
 import { pool } from "./db/db.js"
 import { logger } from "./logger/logger.js"
+import { producer } from "./kafka/kafka.js"
 
 async function main() {
     await pool.query("SELECT 1")
 
     logger.info("PostgreSQL connected")
+
+    await producer.connect()
 
     const server = app.listen(config.PORT, () => {
         logger.info(
@@ -24,12 +27,15 @@ async function main() {
                 logger.error({ err: error }, "HTTP server close failed")
             }
 
+
             try {
                 await pool.end()
             } catch (err) {
                 logger.error({ err }, "Database pool close failed")
                 process.exitCode = 1
             }
+
+            await producer.disconnect()
 
             if (error) process.exitCode = 1
         })

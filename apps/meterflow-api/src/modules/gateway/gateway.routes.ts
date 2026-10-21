@@ -10,6 +10,7 @@ import { apiKeyAuth } from "./gateway.auth.middleware.js"
 import { rateLimit } from "../../middlewares/rate-limit.js"
 import { redis } from "../../redis/redis.js"
 import type { Redis } from "ioredis"
+import { publishUsageEvent } from "../usage/usage.publisher.js"
 
 const schema = z.object({
     model: z.string().min(1),
@@ -47,12 +48,12 @@ export function createGatewayRouter(database: typeof db, redisClient: Redis = re
 
 
 
-            await recordGatewayUsage(
-                database,
-                result.id,
+            await publishUsageEvent({
+                eventId: result.id,
                 customerId,
-                result.usage.total_tokens,
-            )
+                tokens: result.usage.total_tokens,
+                occurredAt: new Date().toISOString(),
+            })
 
             res.json(result)
         })

@@ -25,6 +25,7 @@ const envSchema = z.object({
     AI_BASE_URL: z.url(),
     AI_API_KEY: z.string().min(1),
     REDIS_URL: z.url(),
+    KAFKA_BROKER: z.string().default("localhost:9092"),
 })
 
 export const config = envSchema.parse(process.env)
