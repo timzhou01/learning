@@ -2,6 +2,10 @@
 import { pool } from "./db/db.js"
 import { logger } from "./logger/logger.js"
 import { usageWorker } from "./modules/usage/usage.consumer.js"
+import { register } from "./monitoring/consumer.metrics.js"
+import { startMetricsServer } from "./monitoring/metrics-server.js"
+
+const metricsServer = startMetricsServer(register)
 
 async function main() {
     await pool.query("SELECT 1")
@@ -14,6 +18,7 @@ async function shutdown() {
     logger.info("Stopping Usage Consumer")
 
     try {
+        metricsServer.close()
         await usageWorker.consumer.disconnect()
         await usageWorker.dlqProducer.disconnect()
         await pool.end()

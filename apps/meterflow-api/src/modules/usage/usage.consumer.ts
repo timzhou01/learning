@@ -6,6 +6,7 @@ import { usageEvents } from "../../db/schema/usage-events.js"
 import { usageEventSchema } from "./usage-event.js"
 import { ZodError } from "zod"
 import { logger } from "../../logger/logger.js"
+import { consumedMessages } from "../../monitoring/consumer.metrics.js"
 
 export function createUsageConsumer(
     database: typeof db,
@@ -62,6 +63,11 @@ export function createUsageConsumer(
                             acks: -1,
                         })
 
+                        consumedMessages.inc({
+                            topic,
+                            result: "dlq",
+                        })
+
                         logger.warn(
                             { topic, partition, offset: message.offset },
                             "Invalid usage event moved to DLQ",
@@ -83,6 +89,11 @@ export function createUsageConsumer(
                         .onConflictDoNothing({
                             target: usageEvents.eventId,
                         })
+
+                    consumedMessages.inc({
+                        topic,
+                        result: "success",
+                    })
                 }
             })
         },

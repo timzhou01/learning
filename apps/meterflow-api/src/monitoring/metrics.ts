@@ -2,6 +2,7 @@
 import client from "prom-client"
 import type { RequestHandler } from "express"
 
+
 export const register = new client.Registry()
 
 // Node.js CPU、内存、GC 等默认指标
