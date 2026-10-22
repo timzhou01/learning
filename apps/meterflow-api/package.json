@@ -10,7 +10,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "worker:dev": "tsx watch src/worker.ts",
-    "usage-worker:dev": "tsx watch src/usage-worker.ts"
+    "usage-worker:dev": "tsx watch src/usage-worker.ts",
+    "dlq:replay": "tsx src/scripts/replay-dlq.ts"
   },
   "dependencies": {
     "dotenv": "^18.0.3",
