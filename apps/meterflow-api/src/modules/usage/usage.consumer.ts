@@ -78,7 +78,7 @@ export function createUsageConsumer(
 
                     // 有效消息写入 PostgreSQL
                     // 数据库异常继续抛出，由 KafkaJS 处理重试
-                    await database
+                    const inserted = await database
                         .insert(usageEvents)
                         .values({
                             eventId: event.eventId,
@@ -89,11 +89,26 @@ export function createUsageConsumer(
                         .onConflictDoNothing({
                             target: usageEvents.eventId,
                         })
+                        .returning({
+                            eventId: usageEvents.eventId,
+                        })
 
-                    consumedMessages.inc({
-                        topic,
-                        result: "success",
-                    })
+                    if (inserted.length === 0) {
+                        consumedMessages.inc({
+                            topic,
+                            result: "duplicate",
+                        })
+
+                        logger.info(
+                            { eventId: event.eventId },
+                            "Duplicate usage event skipped",
+                        )
+                    } else {
+                        consumedMessages.inc({
+                            topic,
+                            result: "success",
+                        })
+                    }
                 }
             })
         },
