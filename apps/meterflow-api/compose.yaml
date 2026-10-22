@@ -45,6 +45,15 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"  
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:v1.9.0
+    restart: unless-stopped
+    command:
+      - --kafka.server=kafka:29092
+      - --group.filter=meterflow-.*
+      - --topic.filter=usage-events.*
+    depends_on:
+      - kafka    
   gateway:
     build:
       context: ../..
