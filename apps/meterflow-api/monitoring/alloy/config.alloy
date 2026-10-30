@@ -2,24 +2,26 @@ discovery.docker "containers" {
   host = "unix:///var/run/docker.sock"
 }
 
-discovery.relabel "gateway" {
+discovery.relabel "services" {
   targets = discovery.docker.containers.targets
 
   rule {
     source_labels = ["__meta_docker_container_name"]
-    regex         = "/meterflow-gateway-1"
+    regex         = "/meterflow-(gateway|usage-consumer|billing-worker)-1"
     action        = "keep"
   }
 
   rule {
-    target_label = "service"
-    replacement  = "gateway"
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/meterflow-(.*)-1"
+    target_label  = "service"
+    replacement   = "$1"
   }
 }
 
-loki.source.docker "gateway" {
+loki.source.docker "services" {
   host       = "unix:///var/run/docker.sock"
-  targets    = discovery.relabel.gateway.output
+  targets    = discovery.relabel.services.output
   forward_to = [loki.write.default.receiver]
 }
 
