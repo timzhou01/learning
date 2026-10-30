@@ -58,7 +58,10 @@ services:
     build:
       context: ../..
       dockerfile: apps/meterflow-api/Dockerfile
-    command: pnpm exec tsx src/index.ts
+    command: >
+      pnpm exec tsx
+      --import ./src/instrumentation.ts
+      src/index.ts
     restart: unless-stopped
     ports:
       - "127.0.0.1:3001:3001"
