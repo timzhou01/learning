@@ -127,6 +127,11 @@ services:
       - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards/json:ro
     depends_on:
       - prometheus
+  loki:
+    image: grafana/loki:3.5.0
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "127.0.0.1:3100:3100"
 volumes:
   meterflow_pgdata_v2:
   prometheus_data:
