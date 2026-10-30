@@ -1,4 +1,3 @@
-
 import type { ErrorRequestHandler } from "express"
 import { AppError } from "./app-error.js"
 
@@ -6,10 +5,10 @@ export const errorMiddleware: ErrorRequestHandler = (
     err: unknown,
     req,
     res,
-    _next,
+    next,
 ) => {
     if (res.headersSent) {
-        _next(err)
+        next(err)
         return
     }
 
@@ -27,13 +26,11 @@ export const errorMiddleware: ErrorRequestHandler = (
         ? err.message
         : "Internal server error"
 
+    // 404 只由 pino-http 记录访问日志，避免重复
     if (statusCode >= 500) {
-        req.log.error({ err }, "Request failed")
-    } else {
-        req.log.warn(
-            { code, statusCode },
-            "Request rejected",
-        )
+        req.log.error({ err, code, statusCode }, "Request failed")
+    } else if (statusCode !== 404) {
+        req.log.warn({ code, statusCode }, "Request rejected")
     }
 
     res.status(statusCode).json({
