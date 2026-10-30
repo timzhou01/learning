@@ -23,10 +23,22 @@ export function createApp(database: typeof db = db, redisClient: Redis = redis) 
     app.use(pinoHttp({
         logger,
 
+
         genReqId(_req, res) {
             const requestId = randomUUID()
             res.setHeader("X-Request-ID", requestId)
             return requestId
+        },
+        customLogLevel(req, res, err) {
+            const isProbe =
+                req.url === "/metrics" ||
+                req.url === "/health"
+
+            if (err || res.statusCode >= 500) return "error"
+            if (res.statusCode >= 400) return "warn"
+            if (isProbe) return "silent"
+
+            return "info"
         },
     }))
 
