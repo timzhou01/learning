@@ -73,6 +73,7 @@ services:
       KAFKA_BROKER: kafka:29092
       AI_BASE_URL: http://localhost:9999
       AI_API_KEY: mock-only
+      OTEL_SERVICE_NAME: meterflow-gateway
     depends_on:
       postgres:
         condition: service_healthy
@@ -85,9 +86,14 @@ services:
     build:
       context: ../..
       dockerfile: apps/meterflow-api/Dockerfile
-    command: pnpm exec tsx src/usage-worker.ts
+    command: >
+      pnpm exec tsx
+      --import ./src/instrumentation.ts
+      src/usage-worker.ts
     restart: unless-stopped
-    environment: *app-env
+    environment:
+      <<: *app-env
+      OTEL_SERVICE_NAME: meterflow-usage-consumer
     depends_on:
       postgres:
         condition: service_healthy

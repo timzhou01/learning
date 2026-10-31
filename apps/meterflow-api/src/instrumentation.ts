@@ -3,7 +3,7 @@ import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http"
 import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node"
 
 const sdk = new NodeSDK({
-    serviceName: "meterflow-gateway",
+    serviceName: process.env.OTEL_SERVICE_NAME ?? "meterflow-api",
 
     traceExporter: new OTLPTraceExporter({
         url: process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
@@ -14,6 +14,17 @@ const sdk = new NodeSDK({
         getNodeAutoInstrumentations({
             "@opentelemetry/instrumentation-fs": {
                 enabled: false,
+            },
+
+            "@opentelemetry/instrumentation-http": {
+                ignoreIncomingRequestHook: (req) => {
+                    const path = new URL(
+                        req.url ?? "/",
+                        "http://localhost",
+                    ).pathname
+
+                    return path === "/metrics" || path === "/health"
+                },
             },
         }),
     ],
