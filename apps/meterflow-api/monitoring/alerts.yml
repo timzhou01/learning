@@ -1,0 +1,19 @@
+groups:
+  - name: meterflow-gateway
+    rules:
+      - alert: GatewayHigh5xxErrors
+        expr: |
+          sum(
+            increase(
+              http_request_duration_seconds_count{
+                job="meterflow-gateway",
+                status=~"5.."
+              }[5m]
+            )
+          ) > 5
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Gateway has elevated 5xx errors"
+          description: "More than 5 HTTP 5xx responses in 5 minutes."
